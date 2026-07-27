@@ -25,12 +25,13 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/agora"
 import topbar from "../vendor/topbar"
 import {HlsPlayer} from "./hooks/hls_player"
+import {BrowserBroadcast} from "./hooks/browser_broadcast"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, HlsPlayer},
+  hooks: {...colocatedHooks, HlsPlayer, BrowserBroadcast},
 })
 
 // Show progress bar on live navigation and form submits

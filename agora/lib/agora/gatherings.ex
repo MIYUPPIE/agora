@@ -53,8 +53,20 @@ defmodule Agora.Gatherings do
   @doc "The RTMP ingest URL a broadcaster points OBS/their encoder at."
   def ingest_url(%Gathering{stream_key: stream_key}) do
     host = Application.get_env(:agora, :rtmp_host, "localhost")
-    "rtmp://#{host}:1935/live/#{stream_key}"
+    "rtmp://#{host}:#{rtmp_port()}/live/#{stream_key}"
   end
+
+  @doc """
+  The RTMP URL used by `Agora.Media.BrowserBroadcastBridge`'s ffmpeg
+  process — always 127.0.0.1, never the public host, because that
+  process runs on the same box as `Membrane.RTMPServer` and reaches it
+  over loopback rather than the public network.
+  """
+  def local_ingest_url(%Gathering{stream_key: stream_key}) do
+    "rtmp://127.0.0.1:#{rtmp_port()}/live/#{stream_key}"
+  end
+
+  defp rtmp_port, do: Application.get_env(:agora, :rtmp_port, 1935)
 
   @doc "The HLS manifest URL a listener's <audio> hook loads."
   def manifest_url(%Gathering{id: id}), do: "/media/gatherings/#{id}/index.m3u8"

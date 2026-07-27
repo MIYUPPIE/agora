@@ -15,6 +15,12 @@ defmodule AgoraWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # Carries the browser-native "go live" audio bridge (see
+  # AgoraWeb.BroadcastChannel) — a plain token-authed channel socket,
+  # not tied to the LiveView connection, so a brief LiveView reconnect
+  # doesn't interrupt an in-progress broadcast.
+  socket "/socket", AgoraWeb.UserSocket, websocket: true, longpoll: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

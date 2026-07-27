@@ -38,6 +38,13 @@ config :agora, :media_root, Path.expand("../tmp/test_media_root", __DIR__)
 # isn't just :media_root.
 config :agora, :media_static_root, Path.expand("../tmp/test_media_root", __DIR__)
 
+# Agora.Media.BrowserBroadcastBridge's subprocess: the fast test suite
+# doesn't need a real transcode (that's covered by hands-on verification
+# against the real dev server instead), just a process that reads stdin
+# until closed without needing ffmpeg's actual CLI flags.
+config :agora, :browser_broadcast_ffmpeg, "cat"
+config :agora, :browser_broadcast_ffmpeg_args, fn _rtmp_url -> [] end
+
 # No real TCP listener on :1935 in tests, and jobs run only when a test
 # explicitly asks Oban to (via Oban.Testing), never on a background timer.
 config :agora, :start_rtmp_server, false
