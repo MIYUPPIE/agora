@@ -66,6 +66,36 @@ defmodule AgoraWeb.ProfileLiveTest do
     end
   end
 
+  describe "the circular post-preview strip" do
+    test "the owner sees a leading + circle that opens the tiding composer", %{
+      conn: conn,
+      alice: alice
+    } do
+      {:ok, lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+      refute has_element?(lv, "textarea[name='tiding[body]']")
+      assert html =~ "hero-plus"
+
+      lv |> element("button.rounded-full[phx-value-kind=tiding]") |> render_click()
+      assert has_element?(lv, "textarea[name='tiding[body]']")
+    end
+
+    test "a visitor with no posts and not the owner sees no strip at all", %{
+      conn: conn,
+      alice: alice,
+      bob: bob
+    } do
+      {:ok, _lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{bob.id}")
+      refute html =~ "hero-plus"
+    end
+
+    test "each post in the strip links to its own detail page", %{conn: conn, alice: alice} do
+      {:ok, post} = Posts.create_tiding(alice.id, %{"body" => "a tiding"})
+
+      {:ok, _lv, html} = live(conn, ~p"/profile/#{alice.id}")
+      assert html =~ ~p"/posts/#{post.id}"
+    end
+  end
+
   describe "clinging" do
     test "an anonymous visitor clicking Cling is redirected to log in", %{conn: conn, bob: bob} do
       {:ok, lv, _html} = live(conn, ~p"/profile/#{bob.id}")

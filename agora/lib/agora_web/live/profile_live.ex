@@ -254,6 +254,15 @@ defmodule AgoraWeb.ProfileLive do
         </.link>
       </div>
 
+      <div :if={@is_owner || @posts != []} class="flex gap-3 px-4 pb-4 overflow-x-auto">
+        <.new_post_circle :if={@is_owner} phx-click="open_composer" phx-value-kind="tiding" />
+        <.post_circle
+          :for={post <- Enum.take(@posts, 8)}
+          post={post}
+          navigate={~p"/posts/#{post.id}"}
+        />
+      </div>
+
       <div :if={@composer == :tiding} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">
         <form phx-submit="post_tiding">
           <textarea

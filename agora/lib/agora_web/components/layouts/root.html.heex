@@ -6,6 +6,15 @@
     <meta name="theme-color" content="#1a1a1a" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="Agora" suffix=" · The gathering place" phx-no-format>{assigns[:page_title]}</.live_title>
+
+    <link rel="manifest" href={~p"/manifest.webmanifest"} />
+    <link rel="icon" type="image/png" sizes="192x192" href={~p"/images/icons/icon-192.png"} />
+    <!-- iOS ignores the manifest for install icons/behavior; needs its own tag + meta trio. -->
+    <link rel="apple-touch-icon" href={~p"/images/icons/apple-touch-icon.png"} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agora" />
+
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>

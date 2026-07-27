@@ -109,4 +109,37 @@ defmodule AgoraWeb.AgoraComponents do
     seconds = rem(total_seconds, 60)
     "#{minutes}:#{String.pad_leading(Integer.to_string(seconds), 2, "0")}"
   end
+
+  @doc """
+  A circular, kind-colored post preview — the horizontal "recent
+  activity" strip above the feed list on the profile hub.
+  """
+  attr :post, :any, required: true
+  attr :navigate, :any, required: true
+
+  def post_circle(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class="flex items-center justify-center size-14 rounded-full bg-primary text-white shrink-0 hover:bg-primary/80 transition-colors"
+    >
+      <.icon name={row_icon(@post.kind)} class="size-6" />
+    </.link>
+    """
+  end
+
+  @doc "The leading '+' circle in that same strip — starts a new post."
+  attr :rest, :global
+
+  def new_post_circle(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="flex items-center justify-center size-14 rounded-full border-2 border-primary text-primary shrink-0 hover:bg-primary/10 transition-colors"
+      {@rest}
+    >
+      <.icon name="hero-plus" class="size-6" />
+    </button>
+    """
+  end
 end
