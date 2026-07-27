@@ -1,0 +1,59 @@
+# Single-box deployment (developer.md section 10): Phoenix + Postgres on
+# one node, nginx in front for TLS + static media serving.
+#
+#   cp .env.example .env              # fill in SECRET_KEY_BASE, PHX_HOST, etc.
+#   docker compose build
+#   docker compose up -d db
+#   docker compose run --rm app /app/bin/migrate
+#   docker compose up -d
+#
+# Scaling beyond one box later: see developer.md section 10 (libcluster +
+# Horde for routing Gathering pipelines, Postgres stays central).
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agora}
+      POSTGRES_DB: ${POSTGRES_DB:-agora_prod}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agora}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # RTMP ingest is a raw TCP protocol, not HTTP — nginx doesn't proxy
+      # it (see deploy/nginx.conf.example), so it's published straight
+      # through to the host/firewall.
+      - "1935:1935"
+    volumes:
+      - media_root:/app/media_root
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf.example:/etc/nginx/conf.d/default.conf:ro
+      - media_root:/srv/agora/media_root:ro
+      - ./deploy/certs:/etc/letsencrypt:ro
+
+volumes:
+  pg_data:
+  media_root:

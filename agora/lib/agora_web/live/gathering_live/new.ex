@@ -54,6 +54,11 @@ defmodule AgoraWeb.GatheringLive.New do
           <code class="block bg-base-200 p-3 rounded text-sm break-all text-primary">
             {Gatherings.ingest_url(@gathering)}
           </code>
+          <p class="text-xs text-base-content/50">
+            Set your encoder's audio bitrate to 48–64 kbps AAC-HE (voice) — it
+            costs your listeners far less data and rarely matters for speech.
+            Use 128 kbps only if you're gathering around music.
+          </p>
           <div class="flex items-center gap-2 text-base-content/60">
             <span class="loading loading-spinner loading-sm"></span>
             <span>Waiting for your encoder to connect…</span>

@@ -41,3 +41,10 @@ agora-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Real secrets/env for docker-compose — copy from .env.example instead.
+/.env
+
+# TLS certs mounted into the nginx container (see docker-compose.yml).
+/deploy/certs/*
+!/deploy/certs/.gitkeep
+

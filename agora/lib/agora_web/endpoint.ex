@@ -28,10 +28,19 @@ defmodule AgoraWeb.Endpoint do
     raise_on_missing_only: code_reloading?
 
   # Live Gathering HLS segments + recordings, straight off disk. Only
-  # mounted in dev/test (where :media_root is a compile-time config
-  # value) — in prod, a CDN/nginx points directly at the directory
-  # instead of routing this through Phoenix at all.
-  if media_root = Application.compile_env(:agora, :media_root) do
+  # mounted in dev/test (via :media_static_root, set alongside :media_root
+  # in config/dev.exs and config/test.exs) — in prod, a CDN/nginx points
+  # directly at the directory instead of routing this through Phoenix at
+  # all.
+  #
+  # Deliberately a SEPARATE key from :media_root, not a compile_env read
+  # of it: :media_root is also set at runtime in prod (config/runtime.exs)
+  # so Membrane knows where to write segments, and `mix release` aborts
+  # boot if a compile_env-tracked key's runtime value differs from its
+  # (nil, in prod) compile-time value. Confirmed by hand — building and
+  # booting the actual release crashed with exactly that
+  # validate_compile_env error until this was split in two.
+  if media_root = Application.compile_env(:agora, :media_static_root) do
     plug Plug.Static, at: "/media", from: media_root, gzip: false
   end
 

@@ -1,0 +1,76 @@
+# Example nginx config for the single-box deployment described in
+# developer.md section 10. Adjust paths/hostnames, drop in
+# /etc/nginx/sites-available/, symlink into sites-enabled, reload.
+#
+# Two jobs, cleanly split:
+#
+#   1. Reverse-proxy everything Phoenix owns (LiveView sockets included).
+#   2. Serve `/media` (live HLS segments + archived recordings/clips)
+#      straight off local disk, bypassing the BEAM entirely — that's the
+#      whole point of the MEDIA_ROOT volume: nginx and the app container
+#      both read/write the same path, so hot listener traffic never
+#      touches Phoenix or Postgres.
+#
+# RTMP ingest (port 1935) is NOT proxied here — it's a raw TCP protocol,
+# not HTTP, so `Membrane.RTMPServer` listens on it directly. Just open
+# 1935 on the box's firewall pointed at the app container. If you want a
+# single ingress point instead, add nginx's `stream {}` module (separate
+# config block, outside `http {}`) — most single-broadcaster setups don't
+# need that layer, so it's omitted here.
+
+upstream agora_app {
+  # `app` matches the service name in docker-compose.yml. Use
+  # 127.0.0.1:4000 instead if running the release directly on the host.
+  server app:4000;
+}
+
+server {
+  listen 80;
+  server_name your-domain.example;
+  return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name your-domain.example;
+
+  ssl_certificate     /etc/letsencrypt/live/your-domain.example/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/your-domain.example/privkey.pem;
+
+  client_max_body_size 30m; # image uploads (see :max_file_size in ProfileLive)
+
+  # ---- Live HLS segments + recordings/replays/clips ----
+  # Must match MEDIA_ROOT in the app's environment.
+  location /media/ {
+    alias /srv/agora/media_root/;
+
+    # The playlist is rewritten on every new segment — never cache it.
+    location ~ \.m3u8$ {
+      alias /srv/agora/media_root/;
+      add_header Cache-Control "no-cache";
+    }
+
+    # Segments and fMP4 init headers are immutable once written.
+    location ~ \.(m4s|mp4|m4a|aac)$ {
+      alias /srv/agora/media_root/;
+      add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+  }
+
+  # ---- Everything else: Phoenix ----
+  location / {
+    proxy_pass http://agora_app;
+    proxy_http_version 1.1;
+
+    # Required for LiveView's websocket transport.
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # LiveView sockets are long-lived; don't let nginx time them out.
+    proxy_read_timeout 86400s;
+  }
+}

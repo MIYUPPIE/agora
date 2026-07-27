@@ -141,6 +141,11 @@ if config_env() == :prod do
   # to R2/S3 in production — ex_aws talks to R2 over Req, not hackney.
   config :agora,
     uploads_bucket: System.get_env("R2_UPLOADS_BUCKET"),
+    # Recordings/replays default to the same bucket as post uploads (the
+    # blueprint calls for a single R2 bucket for segments/media/recordings)
+    # but can be split out with its own credentials-free override.
+    recordings_bucket:
+      System.get_env("R2_RECORDINGS_BUCKET") || System.get_env("R2_UPLOADS_BUCKET"),
     cdn_base_url: System.get_env("CDN_BASE_URL")
 
   if System.get_env("R2_UPLOADS_BUCKET") do
@@ -153,4 +158,13 @@ if config_env() == :prod do
         region: "auto"
       ]
   end
+
+  # Local disk root for live Gathering HLS segments and (when no R2 bucket
+  # is configured) recordings/replays. On the single-box deployment this
+  # blueprint targets, nginx/CDN reads straight from this same path — see
+  # `AgoraWeb.Endpoint`, which deliberately does NOT mount a Plug.Static
+  # for it here, unlike dev/test.
+  config :agora, :media_root, System.get_env("MEDIA_ROOT", "/app/media_root")
+
+  config :agora, :rtmp_port, String.to_integer(System.get_env("RTMP_PORT", "1935"))
 end

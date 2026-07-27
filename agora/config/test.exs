@@ -33,6 +33,11 @@ config :agora, :uploads_local_dir, Path.expand("../tmp/test_uploads", __DIR__)
 # Same idea for live-Gathering segments/recordings.
 config :agora, :media_root, Path.expand("../tmp/test_media_root", __DIR__)
 
+# Separate compile-time key for the endpoint's /media static mount — see
+# the comment on this key in config/dev.exs and in endpoint.ex for why it
+# isn't just :media_root.
+config :agora, :media_static_root, Path.expand("../tmp/test_media_root", __DIR__)
+
 # No real TCP listener on :1935 in tests, and jobs run only when a test
 # explicitly asks Oban to (via Oban.Testing), never on a background timer.
 config :agora, :start_rtmp_server, false
