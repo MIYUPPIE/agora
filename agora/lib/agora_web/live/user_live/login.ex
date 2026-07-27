@@ -22,14 +22,13 @@ defmodule AgoraWeb.UserLive.Login do
         <div :if={local_mail_adapter?()} class="alert alert-info mb-4 text-sm">
           <.icon name="hero-information-circle" class="size-5 shrink-0" />
           <span>
-            Local mail adapter — view sent emails at
-            <.link href="/dev/mailbox" class="underline">/dev/mailbox</.link>.
+            Local mail adapter — view sent emails at <.link href="/dev/mailbox" class="underline">/dev/mailbox</.link>.
           </span>
         </div>
 
         <.form
-          :if={@mode == :password}
           :let={f}
+          :if={@mode == :password}
           for={@form}
           id="login_form_password"
           action={~p"/users/log-in"}
@@ -62,8 +61,8 @@ defmodule AgoraWeb.UserLive.Login do
         </.form>
 
         <.form
-          :if={@mode == :magic}
           :let={f}
+          :if={@mode == :magic}
           for={@form}
           id="login_form_magic"
           phx-submit="submit_magic"
@@ -126,7 +125,8 @@ defmodule AgoraWeb.UserLive.Login do
 
   @impl true
   def handle_event("toggle_mode", _params, socket) do
-    {:noreply, assign(socket, :mode, if(socket.assigns.mode == :password, do: :magic, else: :password))}
+    {:noreply,
+     assign(socket, :mode, if(socket.assigns.mode == :password, do: :magic, else: :password))}
   end
 
   def handle_event("submit_password", _params, socket) do

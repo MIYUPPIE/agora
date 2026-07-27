@@ -115,5 +115,4 @@ defmodule AgoraWeb.Layouts do
     </div>
     """
   end
-
 end

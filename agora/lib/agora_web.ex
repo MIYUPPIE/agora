@@ -86,6 +86,8 @@ defmodule AgoraWeb do
       import Phoenix.HTML
       # Core UI components
       import AgoraWeb.CoreComponents
+      # Agora-specific UI components (stats, avatars, action pills)
+      import AgoraWeb.AgoraComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

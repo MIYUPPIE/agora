@@ -17,7 +17,13 @@ defmodule AgoraWeb.UserLive.Registration do
           We'll email you a link to confirm your account — no password needed yet.
         </p>
 
-        <.form for={@form} id="registration_form" phx-submit="save" phx-change="validate" class="space-y-4">
+        <.form
+          for={@form}
+          id="registration_form"
+          phx-submit="save"
+          phx-change="validate"
+          class="space-y-4"
+        >
           <.input
             field={@form[:email]}
             type="email"
@@ -29,7 +35,10 @@ defmodule AgoraWeb.UserLive.Registration do
             phx-mounted={JS.focus()}
           />
 
-          <.button phx-disable-with="Creating account..." class="btn btn-neutral w-full h-12 text-base">
+          <.button
+            phx-disable-with="Creating account..."
+            class="btn btn-neutral w-full h-12 text-base"
+          >
             Sign Up
           </.button>
         </.form>

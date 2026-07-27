@@ -2,12 +2,12 @@ defmodule AgoraWeb.PageController do
   use AgoraWeb, :controller
 
   @doc """
-  Root path. Phase 2 will point signed-in users at the profile hub;
-  until then, settings is the closest thing to a home base.
+  Root path: signed-in users land on their own profile hub, everyone
+  else on the login screen.
   """
   def home(conn, _params) do
-    if conn.assigns[:current_scope] do
-      redirect(conn, to: ~p"/users/settings")
+    if scope = conn.assigns[:current_scope] do
+      redirect(conn, to: ~p"/profile/#{scope.user.id}")
     else
       redirect(conn, to: ~p"/users/log-in")
     end

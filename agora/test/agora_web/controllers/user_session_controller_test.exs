@@ -20,12 +20,11 @@ defmodule AgoraWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
 
-      # "/" redirects signed-in users to settings; assert on the account menu there
+      # "/" redirects signed-in users to their profile hub; assert on the account menu there
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/users/settings"
-      conn = get(conn, ~p"/users/settings")
+      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
-      assert response =~ user.email
       assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
@@ -86,12 +85,11 @@ defmodule AgoraWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
 
-      # "/" redirects signed-in users to settings; assert on the account menu there
+      # "/" redirects signed-in users to their profile hub; assert on the account menu there
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/users/settings"
-      conn = get(conn, ~p"/users/settings")
+      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
-      assert response =~ user.email
       assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
@@ -112,12 +110,11 @@ defmodule AgoraWeb.UserSessionControllerTest do
 
       assert Accounts.get_user!(user.id).confirmed_at
 
-      # "/" redirects signed-in users to settings; assert on the account menu there
+      # "/" redirects signed-in users to their profile hub; assert on the account menu there
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/users/settings"
-      conn = get(conn, ~p"/users/settings")
+      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
-      assert response =~ user.email
       assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end

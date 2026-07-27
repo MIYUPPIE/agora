@@ -6,7 +6,7 @@ defmodule AgoraWeb.PageControllerTest do
     assert redirected_to(conn) == ~p"/users/log-in"
   end
 
-  test "GET / redirects to settings when signed in", %{conn: conn} do
+  test "GET / redirects to the profile hub when signed in", %{conn: conn} do
     user = Agora.AccountsFixtures.user_fixture()
 
     conn =
@@ -14,6 +14,6 @@ defmodule AgoraWeb.PageControllerTest do
       |> log_in_user(user)
       |> get(~p"/")
 
-    assert redirected_to(conn) == ~p"/users/settings"
+    assert redirected_to(conn) == ~p"/profile/#{user.id}"
   end
 end
