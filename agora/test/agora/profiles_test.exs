@@ -25,18 +25,21 @@ defmodule Agora.ProfilesTest do
       assert first.id == second.id
     end
 
-    test "is safe under a concurrent-create race (unique index wins, we re-fetch)" do
+    test "registration already created the profile — get_or_create! is a pure fetch" do
       user = user_fixture()
 
-      # Simulate two requests racing to create the same user's profile: the
-      # second insert hits the unique index and we fall back to a fetch.
-      {:ok, _} =
-        %Agora.Profiles.Profile{}
-        |> Agora.Profiles.Profile.changeset(%{user_id: user.id, display_name: "racer"})
-        |> Repo.insert()
+      # A second manual insert attempt hits the unique index, proving a
+      # profile row already exists from registration (Accounts.register_user),
+      # not lazily from this call.
+      assert {:error, changeset} =
+               %Agora.Profiles.Profile{}
+               |> Agora.Profiles.Profile.changeset(%{user_id: user.id, display_name: "racer"})
+               |> Repo.insert()
+
+      assert %{user_id: ["has already been taken"]} = errors_on(changeset)
 
       profile = Profiles.get_or_create!(user)
-      assert profile.display_name == "racer"
+      refute profile.display_name == "racer"
     end
   end
 
@@ -65,9 +68,8 @@ defmodule Agora.ProfilesTest do
   end
 
   describe "stubs pending later phases" do
-    test "post_count and gathering_count are 0 until Phases 3/4 land" do
+    test "gathering_count is 0 until Phase 4 lands" do
       user = user_fixture()
-      assert Profiles.post_count(user.id) == 0
       assert Profiles.gathering_count(user.id) == 0
     end
   end

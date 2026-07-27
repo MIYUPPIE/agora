@@ -1,14 +1,15 @@
 defmodule AgoraWeb.ProfileLive do
   @moduledoc """
-  The profile hub — avatar, name, tagline, stats, action row, and (from
-  Phase 3 on) the owner's post feed. Bespoke full-bleed chrome, not the
-  generic `Layouts.app` navbar — the red header band IS the page's top
-  chrome, per the mockup.
+  The profile hub — avatar, name, tagline, stats, action row, and the
+  owner's post feed. Bespoke full-bleed chrome, not the generic
+  `Layouts.app` navbar — the red header band IS the page's top chrome,
+  per the mockup.
   """
 
   use AgoraWeb, :live_view
 
-  alias Agora.{Accounts, Profiles, Social}
+  alias Agora.{Accounts, Posts, Profiles, Social}
+  alias Agora.Posts.{ImageProcessor, Storage}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -26,19 +27,30 @@ defmodule AgoraWeb.ProfileLive do
      |> assign(:owner, owner)
      |> assign(:profile, profile)
      |> assign(:is_owner, is_owner)
-     |> assign_stats(owner.id, viewer)}
+     |> assign(:composer, nil)
+     |> assign_stats(owner.id, viewer)
+     |> assign_posts()
+     |> allow_upload(:images,
+       accept: ~w(.jpg .jpeg .png),
+       max_entries: 5,
+       max_file_size: 25_000_000
+     )}
   end
 
   defp assign_stats(socket, owner_id, viewer) do
     socket
     |> assign(:clinger_count, Social.clinger_count(owner_id))
     |> assign(:cling_count, Social.cling_count(owner_id))
-    |> assign(:post_count, Profiles.post_count(owner_id))
+    |> assign(:post_count, Posts.count_for_user(owner_id))
     |> assign(:gathering_count, Profiles.gathering_count(owner_id))
     |> assign(
       :clinging?,
       !!(viewer && viewer.id != owner_id && Social.clinging?(viewer.id, owner_id))
     )
+  end
+
+  defp assign_posts(socket) do
+    assign(socket, :posts, Posts.list_for_user(socket.assigns.owner.id))
   end
 
   @impl true
@@ -67,6 +79,68 @@ defmodule AgoraWeb.ProfileLive do
   def handle_event("coming_soon", %{"feature" => feature}, socket) do
     {:noreply, put_flash(socket, :info, "#{feature} is coming in a later phase.")}
   end
+
+  def handle_event("open_composer", %{"kind" => kind}, socket) do
+    {:noreply, assign(socket, :composer, String.to_existing_atom(kind))}
+  end
+
+  def handle_event("close_composer", _params, socket) do
+    {:noreply, assign(socket, :composer, nil)}
+  end
+
+  def handle_event("validate_images", _params, socket), do: {:noreply, socket}
+
+  def handle_event("cancel_upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :images, ref)}
+  end
+
+  def handle_event("post_tiding", %{"tiding" => %{"body" => body}}, socket) do
+    with true <- socket.assigns.is_owner,
+         {:ok, _post} <- Posts.create_tiding(socket.assigns.owner.id, %{"body" => body}) do
+      {:noreply,
+       socket
+       |> assign(:composer, nil)
+       |> assign_posts()
+       |> assign(:post_count, Posts.count_for_user(socket.assigns.owner.id))}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Couldn't post that tiding.")}
+    end
+  end
+
+  def handle_event("post_images", %{"title" => title}, socket) do
+    if socket.assigns.is_owner do
+      uploaded =
+        consume_uploaded_entries(socket, :images, fn %{path: path}, _entry ->
+          with {:ok, processed_path, byte_size} <- ImageProcessor.process(path),
+               {:ok, url} <- Storage.put(processed_path, image_key(), "image/jpeg") do
+            File.rm(processed_path)
+            {:ok, %{url: url, byte_size: byte_size}}
+          end
+        end)
+
+      case uploaded do
+        [] ->
+          {:noreply, put_flash(socket, :error, "Choose at least one image.")}
+
+        images ->
+          case Posts.create_image_post(socket.assigns.owner.id, %{"title" => title}, images) do
+            {:ok, _post} ->
+              {:noreply,
+               socket
+               |> assign(:composer, nil)
+               |> assign_posts()
+               |> assign(:post_count, Posts.count_for_user(socket.assigns.owner.id))}
+
+            {:error, _reason} ->
+              {:noreply, put_flash(socket, :error, "Couldn't post those images.")}
+          end
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp image_key, do: "posts/images/#{Ecto.UUID.generate()}.jpg"
 
   @impl true
   def handle_info({:stats_updated, _user_id}, socket) do
@@ -120,6 +194,7 @@ defmodule AgoraWeb.ProfileLive do
                 <.icon name="hero-bars-3" class="size-5" />
               </summary>
               <ul class="menu dropdown-content bg-base-200 rounded-box z-10 w-44 p-2 shadow mt-2">
+                <li><.link navigate={~p"/feed"}>Feed</.link></li>
                 <li><.link href={~p"/users/settings"}>Settings</.link></li>
                 <li><.link href={~p"/users/log-out"} method="delete">Log out</.link></li>
               </ul>
@@ -127,7 +202,7 @@ defmodule AgoraWeb.ProfileLive do
           </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-2 mt-5">
+        <div :if={@is_owner} class="grid grid-cols-4 gap-2 mt-5">
           <.action_pill
             icon="hero-microphone"
             label="Start Gathering"
@@ -137,14 +212,14 @@ defmodule AgoraWeb.ProfileLive do
           <.action_pill
             icon="hero-photo"
             label="Upload Image"
-            phx-click="coming_soon"
-            phx-value-feature="Image posts"
+            phx-click="open_composer"
+            phx-value-kind="image"
           />
           <.action_pill
             icon="hero-megaphone"
             label="Tidings"
-            phx-click="coming_soon"
-            phx-value-feature="Tidings"
+            phx-click="open_composer"
+            phx-value-kind="tiding"
           />
           <.action_pill
             icon="hero-signal"
@@ -162,9 +237,62 @@ defmodule AgoraWeb.ProfileLive do
         <.stat count={@cling_count} label="Clings" />
       </div>
 
-      <div class="px-4 py-12 text-center text-base-content/50">
-        No posts yet.
+      <div :if={@composer == :tiding} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">
+        <form phx-submit="post_tiding">
+          <textarea
+            name="tiding[body]"
+            class="textarea w-full bg-base-100"
+            placeholder="Share a tiding…"
+            rows="3"
+            required
+          ></textarea>
+          <div class="flex justify-end gap-2 mt-2">
+            <button type="button" phx-click="close_composer" class="btn btn-sm btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Post</button>
+          </div>
+        </form>
       </div>
+
+      <div :if={@composer == :image} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">
+        <form phx-submit="post_images" phx-change="validate_images" id="image-upload-form">
+          <.live_file_input upload={@uploads.images} />
+
+          <div :for={entry <- @uploads.images.entries} class="flex items-center gap-2 mt-2">
+            <.live_img_preview entry={entry} class="h-14 w-14 object-cover rounded" />
+            <progress value={entry.progress} max="100" class="progress progress-primary flex-1">
+              {entry.progress}%
+            </progress>
+            <button
+              type="button"
+              phx-click="cancel_upload"
+              phx-value-ref={entry.ref}
+              class="btn btn-xs btn-ghost"
+            >
+              <.icon name="hero-x-mark" class="size-4" />
+            </button>
+          </div>
+
+          <input
+            type="text"
+            name="title"
+            placeholder="Caption (optional)"
+            class="input w-full bg-base-100 mt-2"
+          />
+
+          <div class="flex justify-end gap-2 mt-2">
+            <button type="button" phx-click="close_composer" class="btn btn-sm btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Post</button>
+          </div>
+        </form>
+      </div>
+
+      <div :if={@posts != []} class="divide-y divide-base-300">
+        <.post_row :for={post <- @posts} post={post} navigate={~p"/posts/#{post.id}"} />
+      </div>
+
+      <p :if={@posts == []} class="px-4 py-12 text-center text-base-content/50">
+        No posts yet.
+      </p>
     </div>
 
     <Layouts.flash_group flash={@flash} />

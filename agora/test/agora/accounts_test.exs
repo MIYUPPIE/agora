@@ -85,6 +85,15 @@ defmodule Agora.AccountsTest do
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
     end
+
+    test "also creates a profile in the same transaction" do
+      email = unique_user_email()
+      {:ok, user} = Accounts.register_user(valid_user_attributes(email: email))
+
+      profile = Agora.Profiles.get_by_user_id(user.id)
+      assert profile
+      assert profile.display_name == Agora.Profiles.default_display_name(user)
+    end
   end
 
   describe "sudo_mode?/2" do

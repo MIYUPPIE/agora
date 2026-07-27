@@ -133,4 +133,24 @@ if config_env() == :prod do
   #     config :swoosh, :api_client, Swoosh.ApiClient.Req
   #
   # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+
+  # ## Object storage (R2/S3) for post media uploads
+  #
+  # Agora.Posts.Storage falls back to writing under priv/static/uploads
+  # whenever :uploads_bucket isn't set (dev/test). Set these to switch it
+  # to R2/S3 in production — ex_aws talks to R2 over Req, not hackney.
+  config :agora,
+    uploads_bucket: System.get_env("R2_UPLOADS_BUCKET"),
+    cdn_base_url: System.get_env("CDN_BASE_URL")
+
+  if System.get_env("R2_UPLOADS_BUCKET") do
+    config :ex_aws,
+      access_key_id: System.fetch_env!("R2_ACCESS_KEY_ID"),
+      secret_access_key: System.fetch_env!("R2_SECRET_ACCESS_KEY"),
+      s3: [
+        scheme: "https://",
+        host: "#{System.fetch_env!("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com",
+        region: "auto"
+      ]
+  end
 end

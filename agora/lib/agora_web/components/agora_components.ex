@@ -57,4 +57,56 @@ defmodule AgoraWeb.AgoraComponents do
     </button>
     """
   end
+
+  @doc """
+  A single compact feed/profile row: icon + title + muted meta, matching
+  the mockup's list style. Full media (image, waveform+player) only
+  shows on the post detail page.
+  """
+  attr :post, :any, required: true
+  attr :navigate, :any, required: true
+
+  def post_row(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class="flex items-center gap-3 px-4 py-3 hover:bg-base-200 transition-colors"
+    >
+      <.icon name={row_icon(@post.kind)} class="size-6 text-primary shrink-0" />
+      <p class="text-sm text-base-content truncate">
+        {row_title(@post)}<span :if={row_meta(@post)} class="text-base-content/50">: {row_meta(@post)}</span>
+      </p>
+    </.link>
+    """
+  end
+
+  defp row_icon(:audio), do: "hero-musical-note"
+  defp row_icon(:image_set), do: "hero-photo"
+  defp row_icon(:tiding), do: "hero-megaphone"
+
+  defp row_title(%{kind: :tiding, body: body}), do: truncate(body, 60)
+  defp row_title(%{title: title}) when is_binary(title) and title != "", do: title
+  defp row_title(%{kind: :audio}), do: "Untitled recording"
+  defp row_title(%{kind: :image_set}), do: "Untitled post"
+
+  defp row_meta(%{kind: :audio, duration_ms: ms}) when is_integer(ms),
+    do: "Listen: #{format_duration(ms)}"
+
+  defp row_meta(%{kind: :image_set, media: media}) when is_list(media) do
+    count = length(media)
+    "#{count} #{if count == 1, do: "Image", else: "Images"}"
+  end
+
+  defp row_meta(_), do: nil
+
+  defp truncate(text, max) when byte_size(text) <= max, do: text
+  defp truncate(text, max), do: String.slice(text, 0, max) <> "…"
+
+  @doc "Formats milliseconds as M:SS for audio post durations."
+  def format_duration(ms) when is_integer(ms) do
+    total_seconds = div(ms, 1000)
+    minutes = div(total_seconds, 60)
+    seconds = rem(total_seconds, 60)
+    "#{minutes}:#{String.pad_leading(Integer.to_string(seconds), 2, "0")}"
+  end
 end

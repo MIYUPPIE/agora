@@ -11,9 +11,9 @@ defmodule Agora.Profiles do
   def get_by_user_id(user_id), do: Repo.get_by(Profile, user_id: user_id)
 
   @doc """
-  Every user has a profile. Rather than couple profile creation to the
-  registration flow, we guarantee one lazily here — the first view of a
-  profile (almost always the user's own, right after signup) creates it.
+  A profile is created for every user at registration time (see
+  `Agora.Accounts.register_user/1`), so this is a defensive fallback for
+  any user that somehow doesn't have one yet — never the primary path.
   """
   def get_or_create!(%User{} = user) do
     case get_by_user_id(user.id) do
@@ -32,7 +32,8 @@ defmodule Agora.Profiles do
     end
   end
 
-  defp default_display_name(%User{email: email}) do
+  @doc "The starting display_name for a brand-new profile: the email's local part."
+  def default_display_name(%User{email: email}) do
     email |> String.split("@") |> hd()
   end
 
@@ -45,9 +46,6 @@ defmodule Agora.Profiles do
     |> Profile.changeset(attrs)
     |> Repo.update()
   end
-
-  @doc "Post count. Stubbed at 0 until Phase 3 adds the posts table."
-  def post_count(_user_id), do: 0
 
   @doc "Gathering count. Stubbed at 0 until Phase 4 adds the gatherings table."
   def gathering_count(_user_id), do: 0

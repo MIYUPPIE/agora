@@ -31,6 +31,9 @@ agora-*.tar
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 
+# Local-disk fallback for user uploads (dev only — prod uses R2/S3).
+/priv/static/uploads/
+
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
 /assets/node_modules/

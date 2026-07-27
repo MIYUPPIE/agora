@@ -26,6 +26,10 @@ config :agora, AgoraWeb.Endpoint,
 # In test we don't send emails
 config :agora, Agora.Mailer, adapter: Swoosh.Adapters.Test
 
+# Post-media uploads write here instead of priv/static/uploads, so test
+# runs don't leave real files in the dev static tree.
+config :agora, :uploads_local_dir, Path.expand("../tmp/test_uploads", __DIR__)
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

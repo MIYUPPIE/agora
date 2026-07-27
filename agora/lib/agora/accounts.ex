@@ -63,21 +63,25 @@ defmodule Agora.Accounts do
   ## User registration
 
   @doc """
-  Registers a user.
-
-  ## Examples
-
-      iex> register_user(%{field: value})
-      {:ok, %User{}}
-
-      iex> register_user(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
+  Registers a user and its profile in one transaction — every user has a
+  profile from the moment they exist, so any code that preloads
+  `user: :profile` (the Posts feed, comments, reactions) never has to
+  special-case a user who hasn't "set up" a profile yet.
   """
   def register_user(attrs) do
-    %User{}
-    |> User.email_changeset(attrs)
-    |> Repo.insert()
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:user, User.email_changeset(%User{}, attrs))
+    |> Ecto.Multi.insert(:profile, fn %{user: user} ->
+      Agora.Profiles.Profile.changeset(%Agora.Profiles.Profile{}, %{
+        user_id: user.id,
+        display_name: Agora.Profiles.default_display_name(user)
+      })
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user}} -> {:ok, user}
+      {:error, :user, changeset, _changes} -> {:error, changeset}
+    end
   end
 
   ## Settings

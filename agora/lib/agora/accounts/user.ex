@@ -9,6 +9,10 @@ defmodule Agora.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
 
+    # Read-only convenience association for preloads (e.g. `preload(user: :profile)`
+    # in the Posts feed). Profile creation/updates still go through Agora.Profiles.
+    has_one :profile, Agora.Profiles.Profile
+
     timestamps(type: :utc_datetime)
   end
 

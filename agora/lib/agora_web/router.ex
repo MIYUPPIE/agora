@@ -54,6 +54,7 @@ defmodule AgoraWeb.Router do
       on_mount: [{AgoraWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/feed", FeedLive, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password
@@ -68,6 +69,7 @@ defmodule AgoraWeb.Router do
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new
       live "/profile/:id", ProfileLive, :show
+      live "/posts/:id", PostLive.Show, :show
     end
 
     post "/users/log-in", UserSessionController, :create

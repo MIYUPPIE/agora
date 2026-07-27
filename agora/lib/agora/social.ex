@@ -24,6 +24,16 @@ defmodule Agora.Social do
     Cling |> where(clinger_id: ^user_id) |> Repo.aggregate(:count)
   end
 
+  @doc "IDs of people who follow this user — used to fan out new posts."
+  def clinger_ids(user_id) do
+    Cling |> where(clinged_id: ^user_id) |> select([c], c.clinger_id) |> Repo.all()
+  end
+
+  @doc "IDs of people this user follows — the feed is drawn from these."
+  def clinged_ids(user_id) do
+    Cling |> where(clinger_id: ^user_id) |> select([c], c.clinged_id) |> Repo.all()
+  end
+
   def clinging?(clinger_id, clinged_id) do
     Cling
     |> where(clinger_id: ^clinger_id, clinged_id: ^clinged_id)
