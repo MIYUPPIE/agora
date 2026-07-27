@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="agora">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Agora" suffix=" · The gathering place" phx-no-format>{assigns[:page_title]}</.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body class="bg-base-100">
+    {@inner_content}
+  </body>
+</html>
