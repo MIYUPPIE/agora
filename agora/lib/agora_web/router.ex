@@ -55,6 +55,9 @@ defmodule AgoraWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/feed", FeedLive, :index
+      live "/gatherings", GatheringLive.Index, :index
+      live "/gatherings/new", GatheringLive.New, :new
+      live "/gatherings/:id", GatheringLive.Show, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password

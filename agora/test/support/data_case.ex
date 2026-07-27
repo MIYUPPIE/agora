@@ -24,6 +24,8 @@ defmodule Agora.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Agora.DataCase
+
+      use Oban.Testing, repo: Agora.Repo
     end
   end
 

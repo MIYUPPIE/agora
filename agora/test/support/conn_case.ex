@@ -28,6 +28,8 @@ defmodule AgoraWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import AgoraWeb.ConnCase
+
+      use Oban.Testing, repo: Agora.Repo
     end
   end
 

@@ -55,6 +55,11 @@ config :agora, AgoraWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :agora, dev_routes: true
 
+# Local disk root for live Gathering HLS segments + recordings, served by
+# the /media static mount in the endpoint. Prod points a CDN straight at
+# the directory instead of routing this through Phoenix (see runtime.exs).
+config :agora, :media_root, Path.expand("../priv/media_root_dev", __DIR__)
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

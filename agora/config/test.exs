@@ -30,6 +30,14 @@ config :agora, Agora.Mailer, adapter: Swoosh.Adapters.Test
 # runs don't leave real files in the dev static tree.
 config :agora, :uploads_local_dir, Path.expand("../tmp/test_uploads", __DIR__)
 
+# Same idea for live-Gathering segments/recordings.
+config :agora, :media_root, Path.expand("../tmp/test_media_root", __DIR__)
+
+# No real TCP listener on :1935 in tests, and jobs run only when a test
+# explicitly asks Oban to (via Oban.Testing), never on a background timer.
+config :agora, :start_rtmp_server, false
+config :agora, Oban, testing: :manual
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

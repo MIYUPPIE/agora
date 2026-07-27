@@ -76,10 +76,6 @@ defmodule AgoraWeb.ProfileLive do
     end
   end
 
-  def handle_event("coming_soon", %{"feature" => feature}, socket) do
-    {:noreply, put_flash(socket, :info, "#{feature} is coming in a later phase.")}
-  end
-
   def handle_event("open_composer", %{"kind" => kind}, socket) do
     {:noreply, assign(socket, :composer, String.to_existing_atom(kind))}
   end
@@ -206,8 +202,7 @@ defmodule AgoraWeb.ProfileLive do
           <.action_pill
             icon="hero-microphone"
             label="Start Gathering"
-            phx-click="coming_soon"
-            phx-value-feature="Gatherings"
+            phx-click={JS.navigate(~p"/gatherings/new")}
           />
           <.action_pill
             icon="hero-photo"
@@ -224,8 +219,7 @@ defmodule AgoraWeb.ProfileLive do
           <.action_pill
             icon="hero-signal"
             label="Join Gathering"
-            phx-click="coming_soon"
-            phx-value-feature="Gatherings"
+            phx-click={JS.navigate(~p"/gatherings")}
           />
         </div>
       </div>

@@ -110,14 +110,24 @@ defmodule AgoraWeb.ProfileLiveTest do
   end
 
   describe "action row" do
-    test "clicking an unbuilt action shows a coming-soon flash instead of a dead link", %{
+    test "Start Gathering navigates to the broadcaster setup screen", %{
       conn: conn,
       alice: alice
     } do
       {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
 
-      html = lv |> element("button", "Start Gathering") |> render_click()
-      assert html =~ "coming in a later phase"
+      assert {:error, {:live_redirect, %{to: "/gatherings/new"}}} =
+               lv |> element("button", "Start Gathering") |> render_click()
+    end
+
+    test "Join Gathering navigates to the live-gatherings browse page", %{
+      conn: conn,
+      alice: alice
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+
+      assert {:error, {:live_redirect, %{to: "/gatherings"}}} =
+               lv |> element("button", "Join Gathering") |> render_click()
     end
 
     test "the action row only renders for the owner, not a visitor", %{

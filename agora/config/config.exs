@@ -55,6 +55,11 @@ config :ex_aws,
   json_codec: Jason,
   http_client: ExAws.Request.Req
 
+# Background jobs: waveform/replay archiving and clip building (Phases 4/5).
+config :agora, Oban,
+  repo: Agora.Repo,
+  queues: [media: 5, default: 10]
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

@@ -34,6 +34,9 @@ agora-*.tar
 # Local-disk fallback for user uploads (dev only — prod uses R2/S3).
 /priv/static/uploads/
 
+# Local disk root for live Gathering segments/recordings (dev only).
+/priv/media_root_dev/
+
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
 /assets/node_modules/

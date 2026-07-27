@@ -27,6 +27,14 @@ defmodule AgoraWeb.Endpoint do
     only: AgoraWeb.static_paths(),
     raise_on_missing_only: code_reloading?
 
+  # Live Gathering HLS segments + recordings, straight off disk. Only
+  # mounted in dev/test (where :media_root is a compile-time config
+  # value) — in prod, a CDN/nginx points directly at the directory
+  # instead of routing this through Phoenix at all.
+  if media_root = Application.compile_env(:agora, :media_root) do
+    plug Plug.Static, at: "/media", from: media_root, gzip: false
+  end
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
