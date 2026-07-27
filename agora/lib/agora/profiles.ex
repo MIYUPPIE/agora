@@ -46,7 +46,4 @@ defmodule Agora.Profiles do
     |> Profile.changeset(attrs)
     |> Repo.update()
   end
-
-  @doc "Gathering count. Stubbed at 0 until Phase 4 adds the gatherings table."
-  def gathering_count(_user_id), do: 0
 end

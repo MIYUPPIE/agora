@@ -66,11 +66,4 @@ defmodule Agora.ProfilesTest do
       assert %{display_name: ["can't be blank"]} = errors_on(changeset)
     end
   end
-
-  describe "stubs pending later phases" do
-    test "gathering_count is 0 until Phase 4 lands" do
-      user = user_fixture()
-      assert Profiles.gathering_count(user.id) == 0
-    end
-  end
 end

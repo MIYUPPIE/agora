@@ -95,4 +95,19 @@ defmodule Agora.GatheringsTest do
       refute ended.id in ids
     end
   end
+
+  describe "count_for_user/1" do
+    test "counts a user's own gatherings regardless of status" do
+      alice = user_fixture()
+      bob = user_fixture()
+      {:ok, _} = Gatherings.create_gathering(alice.id, %{"title" => "One"})
+      {:ok, ended} = Gatherings.create_gathering(alice.id, %{"title" => "Two"})
+      :ok = Gatherings.mark_live!(ended.id)
+      :ok = Gatherings.mark_ended!(ended.id)
+      {:ok, _} = Gatherings.create_gathering(bob.id, %{"title" => "Not alice's"})
+
+      assert Gatherings.count_for_user(alice.id) == 2
+      assert Gatherings.count_for_user(bob.id) == 1
+    end
+  end
 end

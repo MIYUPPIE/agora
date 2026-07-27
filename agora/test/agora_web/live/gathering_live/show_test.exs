@@ -127,5 +127,74 @@ defmodule AgoraWeb.GatheringLive.ShowTest do
       assert recording.start_seq == 0
       assert Media.current_sequence(gathering.id) > 0
     end
+
+    test "the recording indicator ticks up live as new segments land", %{conn: conn} do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      {:ok, lv, _html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+      lv |> element("button", "Record from now") |> render_click()
+
+      assert render(lv) =~ "Recording — 0s"
+
+      send(lv.pid, {:segment, 1})
+      assert render(lv) =~ "Recording — 4s"
+
+      send(lv.pid, {:segment, 2})
+      assert render(lv) =~ "Recording — 8s"
+    end
+  end
+
+  describe "in-Gathering chat" do
+    test "a sent message is visible to every session in the Gathering, and clears the input", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      alice = user_fixture(%{email: "alice@example.com"})
+      bob = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      {:ok, alice_lv, _html} = live(log_in_user(conn, alice), ~p"/gatherings/#{gathering.id}")
+      {:ok, bob_lv, _html} = live(log_in_user(build_conn(), bob), ~p"/gatherings/#{gathering.id}")
+
+      alice_lv
+      |> form("form[phx-submit=send_chat]", %{"body" => "Amen!"})
+      |> render_submit()
+
+      # render_submit returns as soon as handle_event completes, which is
+      # before alice's own PubSub broadcast round-trips back to her own
+      # process as a handle_info — re-render to observe the settled state.
+      html = render(alice_lv)
+      assert html =~ "alice"
+      assert html =~ "Amen!"
+      # the input clears after sending, not left holding the sent text
+      refute html =~ ~s(value="Amen!")
+
+      assert render(bob_lv) =~ "Amen!"
+    end
+
+    test "blank messages are not broadcast", %{conn: conn} do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      {:ok, lv, _html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+
+      lv |> form("form[phx-submit=send_chat]", %{"body" => "   "}) |> render_submit()
+      refute has_element?(lv, "#chat-messages div")
+    end
   end
 end

@@ -95,6 +95,11 @@ defmodule Agora.Media.GatheringPipeline do
       {:gathering_live, gathering_id}
     )
 
+    # The growth loop: fan out "X is live now" to every Clinger.
+    %{gathering_id: gathering_id}
+    |> Agora.Workers.NotifyGatheringLive.new()
+    |> Oban.insert()
+
     {[spec: spec], state}
   end
 

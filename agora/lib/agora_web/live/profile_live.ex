@@ -8,7 +8,7 @@ defmodule AgoraWeb.ProfileLive do
 
   use AgoraWeb, :live_view
 
-  alias Agora.{Accounts, Posts, Profiles, Social}
+  alias Agora.{Accounts, Gatherings, Posts, Profiles, Social}
   alias Agora.Posts.{ImageProcessor, Storage}
 
   @impl true
@@ -20,6 +20,10 @@ defmodule AgoraWeb.ProfileLive do
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{owner.id}:stats")
+
+      if is_owner do
+        Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{owner.id}:notifications")
+      end
     end
 
     {:ok,
@@ -28,6 +32,7 @@ defmodule AgoraWeb.ProfileLive do
      |> assign(:profile, profile)
      |> assign(:is_owner, is_owner)
      |> assign(:composer, nil)
+     |> assign(:live_now, [])
      |> assign_stats(owner.id, viewer)
      |> assign_posts()
      |> allow_upload(:images,
@@ -42,7 +47,7 @@ defmodule AgoraWeb.ProfileLive do
     |> assign(:clinger_count, Social.clinger_count(owner_id))
     |> assign(:cling_count, Social.cling_count(owner_id))
     |> assign(:post_count, Posts.count_for_user(owner_id))
-    |> assign(:gathering_count, Profiles.gathering_count(owner_id))
+    |> assign(:gathering_count, Gatherings.count_for_user(owner_id))
     |> assign(
       :clinging?,
       !!(viewer && viewer.id != owner_id && Social.clinging?(viewer.id, owner_id))
@@ -143,6 +148,11 @@ defmodule AgoraWeb.ProfileLive do
     {:noreply, assign_stats(socket, socket.assigns.owner.id, current_viewer(socket))}
   end
 
+  def handle_info({:gathering_live_notification, gathering_id, broadcaster_name, title}, socket) do
+    banner = %{id: gathering_id, broadcaster_name: broadcaster_name, title: title}
+    {:noreply, assign(socket, :live_now, [banner | socket.assigns.live_now])}
+  end
+
   defp current_viewer(socket),
     do: socket.assigns.current_scope && socket.assigns.current_scope.user
 
@@ -229,6 +239,19 @@ defmodule AgoraWeb.ProfileLive do
         <.stat count={@gathering_count} label="Gatherings" />
         <.stat count={@clinger_count} label="Clingers" />
         <.stat count={@cling_count} label="Clings" />
+      </div>
+
+      <div :if={@live_now != []} class="px-4 pb-4 space-y-2">
+        <.link
+          :for={banner <- @live_now}
+          navigate={~p"/gatherings/#{banner.id}"}
+          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-white hover:bg-primary/90 transition-colors"
+        >
+          <.icon name="hero-signal" class="size-5 shrink-0" />
+          <span class="text-sm font-medium">
+            {banner.broadcaster_name} is live now — {banner.title}
+          </span>
+        </.link>
       </div>
 
       <div :if={@composer == :tiding} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">

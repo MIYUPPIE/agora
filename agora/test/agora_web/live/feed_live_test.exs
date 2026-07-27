@@ -44,4 +44,17 @@ defmodule AgoraWeb.FeedLiveTest do
   test "redirects anonymous visitors to log in", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/feed")
   end
+
+  test "shows a live-now banner when a Clinger's Gathering goes live", %{conn: conn} do
+    viewer = user_fixture()
+    {:ok, lv, html} = live(log_in_user(conn, viewer), ~p"/feed")
+    refute html =~ "is live now"
+
+    send(lv.pid, {:gathering_live_notification, 42, "Jesse", "Sunday service"})
+
+    html = render(lv)
+    assert html =~ "Jesse is live now"
+    assert html =~ "Sunday service"
+    assert html =~ ~p"/gatherings/42"
+  end
 end

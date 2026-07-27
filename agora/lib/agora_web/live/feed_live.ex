@@ -15,6 +15,7 @@ defmodule AgoraWeb.FeedLive do
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Agora.PubSub, "feed:#{user.id}")
+      Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{user.id}:notifications")
     end
 
     posts = Posts.list_feed_for(user.id)
@@ -22,6 +23,7 @@ defmodule AgoraWeb.FeedLive do
     {:ok,
      socket
      |> assign(:empty_feed?, posts == [])
+     |> assign(:live_now, [])
      |> stream(:posts, posts)}
   end
 
@@ -33,11 +35,31 @@ defmodule AgoraWeb.FeedLive do
      |> stream_insert(:posts, Posts.get_post!(post_id), at: 0)}
   end
 
+  def handle_info({:gathering_live_notification, gathering_id, broadcaster_name, title}, socket) do
+    banner = %{id: gathering_id, broadcaster_name: broadcaster_name, title: title}
+    {:noreply, assign(socket, :live_now, [banner | socket.assigns.live_now])}
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <h1 class="text-xl font-bold text-base-content px-4 pt-2 pb-4">Feed</h1>
+
+      <div :if={@live_now != []} class="px-4 pb-4 space-y-2">
+        <.link
+          :for={banner <- @live_now}
+          navigate={~p"/gatherings/#{banner.id}"}
+          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-white hover:bg-primary/90 transition-colors"
+        >
+          <.icon name="hero-signal" class="size-5 shrink-0" />
+          <span class="text-sm font-medium">
+            {banner.broadcaster_name} is live now — {banner.title}
+          </span>
+        </.link>
+      </div>
 
       <div id="feed" phx-update="stream" class="divide-y divide-base-300">
         <div :for={{dom_id, post} <- @streams.posts} id={dom_id}>

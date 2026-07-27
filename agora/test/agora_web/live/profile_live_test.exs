@@ -190,6 +190,37 @@ defmodule AgoraWeb.ProfileLiveTest do
     end
   end
 
+  describe "go-live notifications" do
+    test "the owner sees a live-now banner for a Clinger's Gathering", %{conn: conn, alice: alice} do
+      {:ok, lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+      refute html =~ "is live now"
+
+      send(lv.pid, {:gathering_live_notification, 42, "Jesse", "Sunday service"})
+
+      html = render(lv)
+      assert html =~ "Jesse is live now"
+      assert html =~ "Sunday service"
+    end
+
+    test "a visitor (not the owner) does not subscribe to the owner's notifications", %{
+      conn: conn,
+      alice: alice,
+      bob: bob
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{bob.id}")
+
+      # alice is viewing bob's profile as a visitor — only bob's own
+      # session (is_owner) should ever receive bob's notifications.
+      Phoenix.PubSub.broadcast(
+        Agora.PubSub,
+        "user:#{bob.id}:notifications",
+        {:gathering_live_notification, 42, "Someone", "A Gathering"}
+      )
+
+      refute render(lv) =~ "is live now"
+    end
+  end
+
   defp tiny_jpeg do
     {:ok, image} = Image.new(20, 20, color: [200, 30, 30])
     {:ok, binary} = Image.write(image, :memory, suffix: ".jpg")

@@ -67,4 +67,8 @@ defmodule Agora.Gatherings do
     |> preload(user: :profile)
     |> Repo.all()
   end
+
+  def count_for_user(user_id) do
+    Gathering |> where(user_id: ^user_id) |> Repo.aggregate(:count)
+  end
 end
