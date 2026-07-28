@@ -61,8 +61,8 @@ defmodule AgoraWeb.PostLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-100">
-      <div class="flex items-center justify-between bg-base-200 px-4 py-2">
+    <div class="min-h-screen mesh-bg">
+      <div class="flex items-center justify-between glass border-b border-white/5 px-4 py-2 sticky top-0 z-20">
         <.link navigate={~p"/"} class="flex items-center gap-2">
           <img src={~p"/images/agora-mark.png"} width="24" alt="Agora" />
           <span class="text-sm font-bold tracking-wide text-primary">AGORA</span>
@@ -76,7 +76,7 @@ defmodule AgoraWeb.PostLive.Show do
         </.link>
       </div>
 
-      <div class="flex items-center gap-3 px-4 py-3 border-b border-base-300">
+      <div class="flex items-center gap-3 px-4 py-4 rise-in">
         <.link navigate={~p"/profile/#{@post.user_id}"}>
           <.avatar
             avatar_url={@post.user.profile.avatar_url}
@@ -89,23 +89,29 @@ defmodule AgoraWeb.PostLive.Show do
         </h1>
       </div>
 
-      <div :if={@post.kind == :image_set} class="flex flex-col">
-        <img :for={m <- @post.media} src={m.url} class="w-full object-cover" />
+      <div :if={@post.kind == :image_set} class="flex flex-col gap-2 px-4">
+        <img
+          :for={m <- @post.media}
+          src={m.url}
+          class="w-full object-cover rounded-box depth-card rise-in"
+        />
       </div>
 
-      <div :if={@post.kind == :audio} class="px-4 py-6">
-        <canvas
-          :if={@post.waveform}
-          id={"waveform-#{@post.id}"}
-          phx-hook=".WaveformPlayer"
-          phx-update="ignore"
-          data-peaks={Jason.encode!(@post.waveform)}
-          data-src={audio_url(@post)}
-          width="600"
-          height="80"
-          class="w-full h-20"
-        />
-        <audio :if={!@post.waveform} controls src={audio_url(@post)} class="w-full mt-2" />
+      <div :if={@post.kind == :audio} class="px-4 pb-2">
+        <div class="rounded-box glass depth-card p-4 rise-in">
+          <canvas
+            :if={@post.waveform}
+            id={"waveform-#{@post.id}"}
+            phx-hook=".WaveformPlayer"
+            phx-update="ignore"
+            data-peaks={Jason.encode!(@post.waveform)}
+            data-src={audio_url(@post)}
+            width="600"
+            height="80"
+            class="w-full h-20 cursor-pointer"
+          />
+          <audio :if={!@post.waveform} controls src={audio_url(@post)} class="w-full" />
+        </div>
         <script :type={Phoenix.LiveView.ColocatedHook} name=".WaveformPlayer">
           export default {
             mounted() {
@@ -138,20 +144,23 @@ defmodule AgoraWeb.PostLive.Show do
         </script>
       </div>
 
-      <div :if={@post.kind == :tiding} class="px-4 py-6">
-        <p class="text-lg text-base-content whitespace-pre-line">{@post.body}</p>
+      <div :if={@post.kind == :tiding} class="px-4 pb-2">
+        <div class="rounded-box glass depth-card p-6 rise-in">
+          <p class="text-lg text-base-content whitespace-pre-line">{@post.body}</p>
+        </div>
       </div>
 
-      <div class="flex items-center gap-6 px-4 py-4">
+      <div class="flex items-center gap-3 px-4 py-4">
         <button
           type="button"
           phx-click="toggle_reaction"
           phx-value-kind="heart"
-          class="flex items-center gap-1.5"
+          class="flex items-center gap-1.5 rounded-full glass depth-card px-4 py-2
+                 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
         >
           <.icon
             name="hero-heart"
-            class={["size-6", @hearted? && "text-primary", !@hearted? && "text-base-content/60"]}
+            class={["size-5", @hearted? && "text-primary", !@hearted? && "text-base-content/60"]}
           />
           <span class="text-sm text-base-content/70">{@heart_count}</span>
         </button>
@@ -159,11 +168,12 @@ defmodule AgoraWeb.PostLive.Show do
           type="button"
           phx-click="toggle_reaction"
           phx-value-kind="torch"
-          class="flex items-center gap-1.5"
+          class="flex items-center gap-1.5 rounded-full glass depth-card px-4 py-2
+                 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
         >
           <.icon
             name="hero-fire"
-            class={["size-6", @torched? && "text-primary", !@torched? && "text-base-content/60"]}
+            class={["size-5", @torched? && "text-primary", !@torched? && "text-base-content/60"]}
           />
           <span class="text-sm text-base-content/70">{@torch_count}</span>
         </button>

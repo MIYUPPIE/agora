@@ -8,65 +8,78 @@ defmodule AgoraWeb.UserLive.Confirmation do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-sm">
-        <div class="text-center">
-          <.header>Welcome {@user.email}</.header>
-        </div>
+        <.auth_logo />
 
-        <.form
-          :if={!@user.confirmed_at}
-          for={@form}
-          id="confirmation_form"
-          phx-mounted={JS.focus_first()}
-          phx-submit="submit"
-          action={~p"/users/log-in?_action=confirmed"}
-          phx-trigger-action={@trigger_submit}
-        >
-          <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
-          <.button
-            name={@form[:remember_me].name}
-            value="true"
-            phx-disable-with="Confirming..."
-            class="btn btn-primary w-full"
+        <div class="rounded-box glass depth-card p-6 rise-in">
+          <div class="text-center mb-4">
+            <.header>Welcome {@user.email}</.header>
+          </div>
+
+          <.form
+            :if={!@user.confirmed_at}
+            for={@form}
+            id="confirmation_form"
+            phx-mounted={JS.focus_first()}
+            phx-submit="submit"
+            action={~p"/users/log-in?_action=confirmed"}
+            phx-trigger-action={@trigger_submit}
           >
-            Confirm and stay logged in
-          </.button>
-          <.button phx-disable-with="Confirming..." class="btn btn-primary btn-outline w-full mt-2">
-            Confirm and log in only this time
-          </.button>
-        </.form>
-
-        <.form
-          :if={@user.confirmed_at}
-          for={@form}
-          id="login_form"
-          phx-submit="submit"
-          phx-mounted={JS.focus_first()}
-          action={~p"/users/log-in"}
-          phx-trigger-action={@trigger_submit}
-        >
-          <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
-          <%= if @current_scope do %>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary w-full">
-              Log in
-            </.button>
-          <% else %>
+            <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
             <.button
               name={@form[:remember_me].name}
               value="true"
-              phx-disable-with="Logging in..."
-              class="btn btn-primary w-full"
+              phx-disable-with="Confirming..."
+              class="btn btn-primary w-full active:scale-95 transition-transform"
             >
-              Keep me logged in on this device
+              Confirm and stay logged in
             </.button>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary btn-outline w-full mt-2">
-              Log me in only this time
+            <.button
+              phx-disable-with="Confirming..."
+              class="btn btn-primary btn-outline w-full mt-2 active:scale-95 transition-transform"
+            >
+              Confirm and log in only this time
             </.button>
-          <% end %>
-        </.form>
+          </.form>
 
-        <p :if={!@user.confirmed_at} class="alert alert-outline mt-8">
-          Tip: If you prefer passwords, you can enable them in the user settings.
-        </p>
+          <.form
+            :if={@user.confirmed_at}
+            for={@form}
+            id="login_form"
+            phx-submit="submit"
+            phx-mounted={JS.focus_first()}
+            action={~p"/users/log-in"}
+            phx-trigger-action={@trigger_submit}
+          >
+            <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
+            <%= if @current_scope do %>
+              <.button
+                phx-disable-with="Logging in..."
+                class="btn btn-primary w-full active:scale-95 transition-transform"
+              >
+                Log in
+              </.button>
+            <% else %>
+              <.button
+                name={@form[:remember_me].name}
+                value="true"
+                phx-disable-with="Logging in..."
+                class="btn btn-primary w-full active:scale-95 transition-transform"
+              >
+                Keep me logged in on this device
+              </.button>
+              <.button
+                phx-disable-with="Logging in..."
+                class="btn btn-primary btn-outline w-full mt-2 active:scale-95 transition-transform"
+              >
+                Log me in only this time
+              </.button>
+            <% end %>
+          </.form>
+
+          <p :if={!@user.confirmed_at} class="alert alert-outline mt-6 text-sm">
+            Tip: If you prefer passwords, you can enable them in the user settings.
+          </p>
+        </div>
       </div>
     </Layouts.app>
     """

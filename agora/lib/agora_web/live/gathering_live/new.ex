@@ -68,7 +68,7 @@ defmodule AgoraWeb.GatheringLive.New do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="max-w-lg mx-auto">
-        <h1 class="text-xl font-bold text-base-content mb-4">Start a Gathering</h1>
+        <h1 class="text-xl font-bold text-base-content mb-4 rise-in">Start a Gathering</h1>
 
         <div :if={@gathering} class="space-y-6">
           <div
@@ -77,14 +77,18 @@ defmodule AgoraWeb.GatheringLive.New do
             phx-update="ignore"
             data-gathering-id={@gathering.id}
             data-token={@broadcast_token}
-            class="rounded-lg bg-base-200 p-4 space-y-3"
+            class="rounded-box glass depth-card p-4 space-y-3 rise-in"
           >
             <p class="text-base-content/80 text-sm">
               Go live right from this device — no extra software needed.
             </p>
 
             <div data-role="idle" class="space-y-2">
-              <button type="button" data-action="start" class="btn btn-primary w-full gap-2">
+              <button
+                type="button"
+                data-action="start"
+                class="btn btn-primary w-full gap-2 active:scale-95 transition-transform"
+              >
                 <.icon name="hero-microphone" class="size-5" /> Go Live From This Device
               </button>
               <p data-role="unsupported" class="hidden text-xs text-warning">
@@ -94,10 +98,14 @@ defmodule AgoraWeb.GatheringLive.New do
 
             <div data-role="live" class="hidden flex items-center justify-between">
               <div class="flex items-center gap-2 text-error">
-                <span class="inline-block size-2 rounded-full bg-error animate-pulse"></span>
+                <span class="inline-block size-2 rounded-full bg-error motion-safe:animate-pulse"></span>
                 <span class="text-sm font-medium">Broadcasting from this device</span>
               </div>
-              <button type="button" data-action="stop" class="btn btn-sm btn-outline">
+              <button
+                type="button"
+                data-action="stop"
+                class="btn btn-sm btn-outline active:scale-95 transition-transform"
+              >
                 Stop
               </button>
             </div>
@@ -105,7 +113,10 @@ defmodule AgoraWeb.GatheringLive.New do
             <p data-role="error" class="hidden text-xs text-error"></p>
           </div>
 
-          <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+          <div
+            class="collapse collapse-arrow glass depth-card rounded-box rise-in"
+            style="animation-delay: 60ms"
+          >
             <input type="checkbox" />
             <div class="collapse-title text-sm text-base-content/70">
               Broadcasting with OBS or another encoder instead?
@@ -114,7 +125,7 @@ defmodule AgoraWeb.GatheringLive.New do
               <p class="text-base-content/80 text-sm">
                 Point your encoder at this ingest URL:
               </p>
-              <code class="block bg-base-100 p-3 rounded text-sm break-all text-primary">
+              <code class="block bg-black/20 p-3 rounded text-sm break-all text-primary">
                 {Gatherings.ingest_url(@gathering)}
               </code>
               <p class="text-xs text-base-content/50">
@@ -132,31 +143,37 @@ defmodule AgoraWeb.GatheringLive.New do
 
           <div
             :if={@live?}
-            class="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-white"
+            class="flex items-center justify-between rounded-box bg-primary depth-glow px-4 py-3 text-white rise-in"
           >
             <div class="flex items-center gap-2">
-              <span class="inline-block size-2 rounded-full bg-white animate-pulse"></span>
+              <span class="inline-block size-2 rounded-full bg-white motion-safe:animate-pulse"></span>
               <span class="text-sm font-medium">You're live — listeners can join now</span>
             </div>
             <a
               href={~p"/gatherings/#{@gathering.id}"}
               target="_blank"
-              class="btn btn-xs bg-black/70 text-white border-none hover:bg-black/90"
+              class="btn btn-xs bg-black/70 text-white border-none hover:bg-black/90 active:scale-95 transition-transform"
             >
               View as a listener
             </a>
           </div>
         </div>
 
-        <form :if={!@gathering} phx-submit="create" class="space-y-4">
+        <form
+          :if={!@gathering}
+          class="rounded-box glass depth-card p-6 space-y-4 rise-in"
+          phx-submit="create"
+        >
           <input
             type="text"
             name="gathering[title]"
             placeholder="What are we gathering for?"
-            class="input w-full"
+            class="input w-full bg-base-100/60"
             required
           />
-          <button type="submit" class="btn btn-primary w-full">Start Gathering</button>
+          <button type="submit" class="btn btn-primary w-full active:scale-95 transition-transform">
+            Start Gathering
+          </button>
         </form>
       </div>
     </Layouts.app>

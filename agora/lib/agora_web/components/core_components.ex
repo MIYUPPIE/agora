@@ -110,7 +110,7 @@ defmodule AgoraWeb.CoreComponents do
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        ["btn", Map.fetch!(variants, assigns[:variant]), "active:scale-95 transition-transform"]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
@@ -296,7 +296,8 @@ defmodule AgoraWeb.CoreComponents do
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
+            @class ||
+              "w-full input bg-base-200/60 border-white/10 focus:border-primary/60 transition-colors",
             @errors != [] && (@error_class || "input-error")
           ]}
           {@rest}
