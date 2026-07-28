@@ -48,3 +48,7 @@ npm-debug.log
 /deploy/certs/*
 !/deploy/certs/.gitkeep
 
+# Locally-trusted dev cert (mkcert) for testing on phones over LAN — a
+# private key, machine-specific IP, never shared/committed.
+/priv/cert/
+

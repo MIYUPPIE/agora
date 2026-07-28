@@ -17,9 +17,9 @@ config :agora, Agora.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :agora, AgoraWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  # Bound to all interfaces (not just loopback) so a phone on the same
+  # router/Wi-Fi can reach it at this machine's LAN IP.
+  http: [ip: {0, 0, 0, 0}],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -28,6 +28,32 @@ config :agora, AgoraWeb.Endpoint,
     esbuild: {Esbuild, :install_and_run, [:agora, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:agora, ~w(--watch)]}
   ]
+
+# A phone's browser only allows microphone access (getUserMedia, used by
+# the browser-broadcast "Go Live" feature) from a secure context — HTTPS,
+# or literally `localhost`. A plain LAN IP over http:// doesn't qualify.
+# This is entirely optional and per-machine (priv/cert/ is gitignored,
+# doesn't exist on a fresh clone) — only enabled when the cert is
+# actually present, so it never breaks `mix phx.server` for anyone who
+# hasn't set it up. To set it up:
+#
+#   mkcert -cert-file priv/cert/agora-lan.pem -key-file priv/cert/agora-lan-key.pem \
+#     <your-lan-ip> localhost 127.0.0.1 ::1
+#
+# then trust `mkcert -CAROOT`/rootCA.pem on the phone.
+certfile = Path.expand("../priv/cert/agora-lan.pem", __DIR__)
+keyfile = Path.expand("../priv/cert/agora-lan-key.pem", __DIR__)
+
+if File.exists?(certfile) and File.exists?(keyfile) do
+  config :agora, AgoraWeb.Endpoint,
+    https: [
+      ip: {0, 0, 0, 0},
+      port: 4001,
+      cipher_suite: :compatible,
+      keyfile: keyfile,
+      certfile: certfile
+    ]
+end
 
 # ## SSL Support
 #
