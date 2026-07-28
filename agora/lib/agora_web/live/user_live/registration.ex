@@ -13,40 +13,50 @@ defmodule AgoraWeb.UserLive.Registration do
       <div class="mx-auto w-full max-w-sm">
         <.auth_logo />
 
-        <p class="mb-4 text-center text-sm text-base-content/70">
-          We'll email you a link to confirm your account — no password needed yet.
-        </p>
-
-        <.form
-          for={@form}
-          id="registration_form"
-          phx-submit="save"
-          phx-change="validate"
-          class="space-y-4"
+        <div
+          id="registration-card"
+          phx-hook="Tilt"
+          class="tilt glass depth-card rounded-box p-6 rise-in"
+          style="animation-delay: 80ms"
         >
-          <.input
-            field={@form[:email]}
-            type="email"
-            placeholder="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-            class={@input_class}
-            phx-mounted={JS.focus()}
-          />
+          <p class="mb-4 text-center text-sm text-base-content/70">
+            We'll email you a link to confirm your account — no password needed yet.
+          </p>
 
-          <.button
-            phx-disable-with="Creating account..."
-            class="btn btn-neutral w-full h-12 text-base"
+          <.form
+            for={@form}
+            id="registration_form"
+            phx-submit="save"
+            phx-change="validate"
+            class="space-y-4"
           >
-            Sign Up
-          </.button>
-        </.form>
+            <.input
+              field={@form[:email]}
+              type="email"
+              placeholder="Email"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              class={@input_class}
+              phx-mounted={JS.focus()}
+            />
 
-        <div class="mt-6 text-center text-sm">
-          <.link navigate={~p"/users/log-in"} class="font-semibold text-base-content hover:underline">
-            Already have an account? Log in
-          </.link>
+            <.button
+              phx-disable-with="Creating account..."
+              class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform"
+            >
+              Sign Up
+            </.button>
+          </.form>
+
+          <div class="mt-6 text-center text-sm">
+            <.link
+              navigate={~p"/users/log-in"}
+              class="font-semibold text-base-content hover:underline"
+            >
+              Already have an account? Log in
+            </.link>
+          </div>
         </div>
       </div>
     </Layouts.app>

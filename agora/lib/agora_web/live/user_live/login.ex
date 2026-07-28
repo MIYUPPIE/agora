@@ -13,96 +13,105 @@ defmodule AgoraWeb.UserLive.Login do
         <.auth_logo />
 
         <div
-          :if={@current_scope}
-          class="mb-4 text-center text-sm text-base-content/70"
+          id="login-card"
+          phx-hook="Tilt"
+          class="tilt glass depth-card rounded-box p-6 rise-in"
+          style="animation-delay: 80ms"
         >
-          Reauthenticate to perform sensitive actions on your account.
-        </div>
-
-        <div :if={local_mail_adapter?()} class="alert alert-info mb-4 text-sm">
-          <.icon name="hero-information-circle" class="size-5 shrink-0" />
-          <span>
-            Local mail adapter — view sent emails at <.link href="/dev/mailbox" class="underline">/dev/mailbox</.link>.
-          </span>
-        </div>
-
-        <.form
-          :let={f}
-          :if={@mode == :password}
-          for={@form}
-          id="login_form_password"
-          action={~p"/users/log-in"}
-          phx-submit="submit_password"
-          phx-trigger-action={@trigger_submit}
-          class="space-y-4"
-        >
-          <.input
-            readonly={!!@current_scope}
-            field={f[:email]}
-            type="email"
-            placeholder="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-            class={@input_class}
-            phx-mounted={JS.focus()}
-          />
-          <.input
-            field={@form[:password]}
-            type="password"
-            placeholder="Password"
-            autocomplete="current-password"
-            spellcheck="false"
-            required
-            class={@input_class}
-          />
-          <input type="hidden" name={@form[:remember_me].name} value="true" />
-          <.button class="btn btn-neutral w-full h-12 text-base">Login</.button>
-        </.form>
-
-        <.form
-          :let={f}
-          :if={@mode == :magic}
-          for={@form}
-          id="login_form_magic"
-          phx-submit="submit_magic"
-          class="space-y-4"
-        >
-          <.input
-            field={f[:email]}
-            type="email"
-            placeholder="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-            class={@input_class}
-            phx-mounted={JS.focus()}
-          />
-          <.button class="btn btn-neutral w-full h-12 text-base">
-            Email me a login link
-          </.button>
-        </.form>
-
-        <div class="mt-6 flex flex-col items-center gap-2 text-sm">
-          <button
-            type="button"
-            phx-click="toggle_mode"
-            class="text-base-content/60 hover:text-base-content underline-offset-4 hover:underline"
+          <div
+            :if={@current_scope}
+            class="mb-4 text-center text-sm text-base-content/70"
           >
-            <%= if @mode == :password do %>
-              Log in with an emailed link instead
-            <% else %>
-              Log in with a password instead
-            <% end %>
-          </button>
+            Reauthenticate to perform sensitive actions on your account.
+          </div>
 
-          <.link
-            :if={!@current_scope}
-            navigate={~p"/users/register"}
-            class="font-semibold text-base-content hover:underline"
+          <div :if={local_mail_adapter?()} class="alert alert-info mb-4 text-sm">
+            <.icon name="hero-information-circle" class="size-5 shrink-0" />
+            <span>
+              Local mail adapter — view sent emails at <.link href="/dev/mailbox" class="underline">/dev/mailbox</.link>.
+            </span>
+          </div>
+
+          <.form
+            :let={f}
+            :if={@mode == :password}
+            for={@form}
+            id="login_form_password"
+            action={~p"/users/log-in"}
+            phx-submit="submit_password"
+            phx-trigger-action={@trigger_submit}
+            class="space-y-4"
           >
-            Sign Up
-          </.link>
+            <.input
+              readonly={!!@current_scope}
+              field={f[:email]}
+              type="email"
+              placeholder="Email"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              class={@input_class}
+              phx-mounted={JS.focus()}
+            />
+            <.input
+              field={@form[:password]}
+              type="password"
+              placeholder="Password"
+              autocomplete="current-password"
+              spellcheck="false"
+              required
+              class={@input_class}
+            />
+            <input type="hidden" name={@form[:remember_me].name} value="true" />
+            <.button class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform">
+              Login
+            </.button>
+          </.form>
+
+          <.form
+            :let={f}
+            :if={@mode == :magic}
+            for={@form}
+            id="login_form_magic"
+            phx-submit="submit_magic"
+            class="space-y-4"
+          >
+            <.input
+              field={f[:email]}
+              type="email"
+              placeholder="Email"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              class={@input_class}
+              phx-mounted={JS.focus()}
+            />
+            <.button class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform">
+              Email me a login link
+            </.button>
+          </.form>
+
+          <div class="mt-6 flex flex-col items-center gap-2 text-sm">
+            <button
+              type="button"
+              phx-click="toggle_mode"
+              class="text-base-content/60 hover:text-base-content underline-offset-4 hover:underline transition-colors"
+            >
+              <%= if @mode == :password do %>
+                Log in with an emailed link instead
+              <% else %>
+                Log in with a password instead
+              <% end %>
+            </button>
+
+            <.link
+              :if={!@current_scope}
+              navigate={~p"/users/register"}
+              class="font-semibold text-base-content hover:underline"
+            >
+              Sign Up
+            </.link>
+          </div>
         </div>
       </div>
     </Layouts.app>

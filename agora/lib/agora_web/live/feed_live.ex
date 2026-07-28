@@ -46,22 +46,23 @@ defmodule AgoraWeb.FeedLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <h1 class="text-xl font-bold text-base-content px-4 pt-2 pb-4">Feed</h1>
+      <h1 class="text-xl font-bold text-base-content px-4 pt-2 pb-4 rise-in">Feed</h1>
 
       <div :if={@live_now != []} class="px-4 pb-4 space-y-2">
         <.link
           :for={banner <- @live_now}
           navigate={~p"/gatherings/#{banner.id}"}
-          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-white hover:bg-primary/90 transition-colors"
+          class="flex items-center gap-2 rounded-lg bg-primary depth-glow px-4 py-3 text-white
+                 transition-all duration-200 hover:bg-primary/90 hover:-translate-y-0.5 rise-in"
         >
-          <.icon name="hero-signal" class="size-5 shrink-0" />
+          <.icon name="hero-signal" class="size-5 shrink-0 motion-safe:animate-pulse" />
           <span class="text-sm font-medium">
             {banner.broadcaster_name} is live now — {banner.title}
           </span>
         </.link>
       </div>
 
-      <div id="feed" phx-update="stream" class="divide-y divide-base-300">
+      <div id="feed" phx-update="stream" class="flex flex-col gap-2 px-4">
         <div :for={{dom_id, post} <- @streams.posts} id={dom_id}>
           <.post_row post={post} navigate={~p"/posts/#{post.id}"} />
         </div>

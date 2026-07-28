@@ -139,60 +139,80 @@ defmodule AgoraWeb.GatheringLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-100 px-4 py-6">
-      <div class="flex items-center gap-3 mb-4">
+    <div class="min-h-screen mesh-bg px-4 py-6">
+      <div class="flex items-center gap-4 mb-4 rounded-box glass depth-card p-4 rise-in">
         <.avatar
           avatar_url={@gathering.user.profile.avatar_url}
           display_name={@gathering.user.profile.display_name}
           size="size-12"
         />
-        <div>
-          <h1 class="text-lg font-bold text-base-content">{@gathering.title}</h1>
-          <p class="text-sm text-base-content/60">by {@gathering.user.profile.display_name}</p>
+        <div class="flex-1 min-w-0">
+          <h1 class="text-lg font-bold text-base-content truncate">{@gathering.title}</h1>
+          <p class="text-sm text-base-content/60 truncate">
+            by {@gathering.user.profile.display_name}
+          </p>
         </div>
+        <p class="shrink-0 text-sm text-primary font-medium whitespace-nowrap">
+          <span class={@gathering.status == :live && "motion-safe:animate-pulse"}>🎙</span>
+          {@listener_count} listening
+        </p>
       </div>
 
-      <p class="text-sm text-primary mb-4">🎙 {@listener_count} listening</p>
+      <div class="rounded-box glass depth-card p-4 mb-6 rise-in" style="animation-delay: 60ms">
+        <audio
+          :if={@gathering.status == :live}
+          id="player"
+          phx-hook="HlsPlayer"
+          phx-update="ignore"
+          data-manifest={@manifest_url}
+          controls
+          autoplay
+          class="w-full"
+        />
+        <p :if={@gathering.status != :live} class="text-base-content/50 text-center py-2">
+          This Gathering isn't live right now.
+        </p>
+      </div>
 
-      <audio
-        :if={@gathering.status == :live}
-        id="player"
-        phx-hook="HlsPlayer"
-        phx-update="ignore"
-        data-manifest={@manifest_url}
-        controls
-        autoplay
-        class="w-full"
-      />
-      <p :if={@gathering.status != :live} class="text-base-content/50">
-        This Gathering isn't live right now.
-      </p>
-
-      <div class="flex flex-wrap items-center gap-2 mt-6">
+      <div class="flex flex-wrap items-center gap-2 mb-6">
         <%= if @recording do %>
-          <button phx-click="stop_recording" class="btn btn-error">
+          <button
+            phx-click="stop_recording"
+            class="btn btn-error active:scale-95 transition-transform"
+          >
             ⏹ Stop &amp; download
           </button>
           <span class="text-sm text-base-content/60">
             Recording — {recording_elapsed_s(@recording, @head_sequence)}s
           </span>
         <% else %>
-          <button phx-click="record" class="btn btn-primary">⏺ Record from now</button>
-          <button phx-click="record_from_start" class="btn btn-primary btn-outline">
+          <button phx-click="record" class="btn btn-primary active:scale-95 transition-transform">
+            ⏺ Record from now
+          </button>
+          <button
+            phx-click="record_from_start"
+            class="btn btn-primary btn-outline active:scale-95 transition-transform"
+          >
             ⏮ Record from the beginning
           </button>
         <% end %>
 
         <%= if @download_url do %>
-          <a href={@download_url} class="btn btn-success" download>⬇ Download your recording</a>
+          <a
+            href={@download_url}
+            class="btn btn-success active:scale-95 transition-transform"
+            download
+          >
+            ⬇ Download your recording
+          </a>
         <% end %>
       </div>
 
-      <div class="mt-8">
+      <div class="rounded-box glass depth-card p-4 rise-in" style="animation-delay: 120ms">
         <h2 class="text-sm font-semibold text-base-content/70 mb-2">Chat</h2>
         <div
           id="chat-messages"
-          class="h-48 overflow-y-auto rounded-lg bg-base-200 p-3 space-y-1 mb-2 flex flex-col-reverse"
+          class="h-48 overflow-y-auto rounded-lg bg-black/20 p-3 space-y-1 mb-2 flex flex-col-reverse"
         >
           <div :for={message <- @chat_messages} class="text-sm">
             <span class="font-semibold text-primary">{message.display_name}</span>
@@ -206,9 +226,11 @@ defmodule AgoraWeb.GatheringLive.Show do
             value={@chat_draft}
             placeholder="Say something…"
             autocomplete="off"
-            class="input input-sm flex-1"
+            class="input input-sm flex-1 bg-base-100/60"
           />
-          <button type="submit" class="btn btn-sm btn-primary">Send</button>
+          <button type="submit" class="btn btn-sm btn-primary active:scale-95 transition-transform">
+            Send
+          </button>
         </form>
       </div>
     </div>

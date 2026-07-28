@@ -322,8 +322,10 @@ defmodule AgoraWeb.CoreComponents do
   """
   def auth_logo(assigns) do
     ~H"""
-    <div class="flex flex-col items-center gap-2 mb-8">
-      <img src={~p"/images/agora-mark.png"} width="88" alt="Agora" />
+    <div class="flex flex-col items-center gap-3 mb-8 rise-in">
+      <div class="rounded-full p-1 depth-glow">
+        <img src={~p"/images/agora-mark.png"} width="88" alt="Agora" class="rounded-full" />
+      </div>
       <span class="text-3xl font-semibold tracking-wide text-base-content">AGORA</span>
     </div>
     """

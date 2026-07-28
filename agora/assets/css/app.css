@@ -65,4 +65,70 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* ── Depth design system ──────────────────────────────────────────────
+   CSS-only "premium" polish (glass, layered shadow depth, gradient mesh,
+   pointer-tilt) — deliberately not WebGL/Three.js. This app targets
+   data-conscious mobile listeners (see the 48-64kbps bitrate guidance
+   on the Start Gathering screen); a real 3D layer would fight that
+   goal for a purely cosmetic win. These utilities are near-free: no
+   extra requests, no GPU-heavy scenes, and the tilt hook (see
+   assets/js/hooks/tilt.js) only runs on fine-pointer/hover devices —
+   touch just gets the plain press-scale feedback instead. */
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+@utility depth-card {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 10px 30px -10px rgba(0, 0, 0, 0.65),
+    0 2px 10px -2px rgba(0, 0, 0, 0.45);
+}
+
+@utility depth-glow {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 10px 34px -8px color-mix(in oklab, var(--color-primary) 50%, transparent),
+    0 2px 10px -2px rgba(0, 0, 0, 0.55);
+}
+
+@utility mesh-bg {
+  background-color: var(--color-base-100);
+  background-image:
+    radial-gradient(ellipse 65% 50% at 15% -10%, color-mix(in oklab, var(--color-primary) 38%, transparent), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 105% 15%, color-mix(in oklab, var(--color-secondary) 28%, transparent), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 115%, color-mix(in oklab, var(--color-primary) 16%, transparent), transparent 60%);
+}
+
+/* Pointer-tilt wrapper — assets/js/hooks/tilt.js sets --tilt-rx/--tilt-ry
+   on mousemove (fine-pointer devices only) and resets them on leave. */
+@utility tilt {
+  transform: perspective(900px) rotateX(var(--tilt-ry, 0deg)) rotateY(var(--tilt-rx, 0deg)) translateZ(0);
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* Entrance animation for feed/stream items — paired with
+   phx-mounted={JS.transition(...)} where used, this class just sets
+   the starting keyframe so content doesn't flash in unstyled before
+   the transition runs. */
+@utility rise-in {
+  animation: rise-in 450ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* This file is for your main application CSS */

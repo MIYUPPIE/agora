@@ -12,7 +12,7 @@ defmodule AgoraWeb.AgoraComponents do
 
   def stat(assigns) do
     ~H"""
-    <div class="text-center">
+    <div class="text-center rounded-box glass depth-card py-3 transition-transform hover:-translate-y-0.5">
       <div class="text-3xl font-bold text-white">{@count}</div>
       <div class="text-sm text-neutral-400">{@label}</div>
     </div>
@@ -25,7 +25,7 @@ defmodule AgoraWeb.AgoraComponents do
 
   def avatar(assigns) do
     ~H"""
-    <div class={[@size, "rounded-full overflow-hidden shrink-0"]}>
+    <div class={[@size, "rounded-full overflow-hidden shrink-0 ring-2 ring-white/15 depth-card"]}>
       <img :if={@avatar_url} src={@avatar_url} alt={@display_name} class="w-full h-full object-cover" />
       <div
         :if={!@avatar_url}
@@ -49,7 +49,9 @@ defmodule AgoraWeb.AgoraComponents do
     ~H"""
     <button
       type="button"
-      class="flex flex-col items-center gap-1 rounded-lg bg-black/40 px-2 py-2 text-white hover:bg-black/60 transition-colors"
+      class="flex flex-col items-center gap-1 rounded-lg bg-black/30 backdrop-blur-sm px-2 py-2 text-white
+             transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 active:scale-95
+             border border-white/5"
       {@rest}
     >
       <.icon name={@icon} class="size-5" />
@@ -70,7 +72,8 @@ defmodule AgoraWeb.AgoraComponents do
     ~H"""
     <.link
       navigate={@navigate}
-      class="flex items-center gap-3 px-4 py-3 hover:bg-base-200 transition-colors"
+      class="flex items-center gap-3 px-4 py-3 rounded-box glass depth-card rise-in
+             transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.06] active:scale-[0.99]"
     >
       <.icon name={row_icon(@post.kind)} class="size-6 text-primary shrink-0" />
       <p class="text-sm text-base-content truncate">
@@ -121,7 +124,8 @@ defmodule AgoraWeb.AgoraComponents do
     ~H"""
     <.link
       navigate={@navigate}
-      class="flex items-center justify-center size-14 rounded-full bg-primary text-white shrink-0 hover:bg-primary/80 transition-colors"
+      class="flex items-center justify-center size-14 rounded-full bg-primary text-white shrink-0
+             depth-glow transition-all duration-200 hover:-translate-y-1 hover:scale-105 active:scale-95"
     >
       <.icon name={row_icon(@post.kind)} class="size-6" />
     </.link>
@@ -135,7 +139,8 @@ defmodule AgoraWeb.AgoraComponents do
     ~H"""
     <button
       type="button"
-      class="flex items-center justify-center size-14 rounded-full border-2 border-primary text-primary shrink-0 hover:bg-primary/10 transition-colors"
+      class="flex items-center justify-center size-14 rounded-full border-2 border-primary text-primary shrink-0
+             transition-all duration-200 hover:bg-primary/10 hover:-translate-y-1 hover:scale-105 active:scale-95"
       {@rest}
     >
       <.icon name="hero-plus" class="size-6" />

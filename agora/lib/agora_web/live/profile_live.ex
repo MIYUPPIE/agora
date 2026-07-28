@@ -160,8 +160,10 @@ defmodule AgoraWeb.ProfileLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-base-100">
-      <div class="bg-primary px-4 pt-6 pb-4">
-        <div class="flex items-start gap-3">
+      <div class="relative px-4 pt-6 pb-4 overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-primary via-primary to-secondary"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/5"></div>
+        <div class="relative flex items-start gap-3">
           <.avatar
             avatar_url={@profile.avatar_url}
             display_name={@profile.display_name}
@@ -208,7 +210,7 @@ defmodule AgoraWeb.ProfileLive do
           </div>
         </div>
 
-        <div :if={@is_owner} class="grid grid-cols-4 gap-2 mt-5">
+        <div :if={@is_owner} class="relative grid grid-cols-4 gap-2 mt-5">
           <.action_pill
             icon="hero-microphone"
             label="Start Gathering"
@@ -245,9 +247,10 @@ defmodule AgoraWeb.ProfileLive do
         <.link
           :for={banner <- @live_now}
           navigate={~p"/gatherings/#{banner.id}"}
-          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-white hover:bg-primary/90 transition-colors"
+          class="flex items-center gap-2 rounded-lg bg-primary depth-glow px-4 py-3 text-white
+                 transition-all duration-200 hover:bg-primary/90 hover:-translate-y-0.5"
         >
-          <.icon name="hero-signal" class="size-5 shrink-0" />
+          <.icon name="hero-signal" class="size-5 shrink-0 motion-safe:animate-pulse" />
           <span class="text-sm font-medium">
             {banner.broadcaster_name} is live now — {banner.title}
           </span>
@@ -263,23 +266,25 @@ defmodule AgoraWeb.ProfileLive do
         />
       </div>
 
-      <div :if={@composer == :tiding} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">
+      <div :if={@composer == :tiding} class="mx-4 mb-4 rounded-box glass depth-card p-4 rise-in">
         <form phx-submit="post_tiding">
           <textarea
             name="tiding[body]"
-            class="textarea w-full bg-base-100"
+            class="textarea w-full bg-base-100/60"
             placeholder="Share a tiding…"
             rows="3"
             required
           ></textarea>
           <div class="flex justify-end gap-2 mt-2">
             <button type="button" phx-click="close_composer" class="btn btn-sm btn-ghost">Cancel</button>
-            <button type="submit" class="btn btn-sm btn-primary">Post</button>
+            <button type="submit" class="btn btn-sm btn-primary active:scale-95 transition-transform">
+              Post
+            </button>
           </div>
         </form>
       </div>
 
-      <div :if={@composer == :image} class="mx-4 mb-4 rounded-lg bg-base-200 p-4">
+      <div :if={@composer == :image} class="mx-4 mb-4 rounded-box glass depth-card p-4 rise-in">
         <form phx-submit="post_images" phx-change="validate_images" id="image-upload-form">
           <.live_file_input upload={@uploads.images} />
 
@@ -302,17 +307,19 @@ defmodule AgoraWeb.ProfileLive do
             type="text"
             name="title"
             placeholder="Caption (optional)"
-            class="input w-full bg-base-100 mt-2"
+            class="input w-full bg-base-100/60 mt-2"
           />
 
           <div class="flex justify-end gap-2 mt-2">
             <button type="button" phx-click="close_composer" class="btn btn-sm btn-ghost">Cancel</button>
-            <button type="submit" class="btn btn-sm btn-primary">Post</button>
+            <button type="submit" class="btn btn-sm btn-primary active:scale-95 transition-transform">
+              Post
+            </button>
           </div>
         </form>
       </div>
 
-      <div :if={@posts != []} class="divide-y divide-base-300">
+      <div :if={@posts != []} class="flex flex-col gap-2 px-4 pb-4">
         <.post_row :for={post <- @posts} post={post} navigate={~p"/posts/#{post.id}"} />
       </div>
 

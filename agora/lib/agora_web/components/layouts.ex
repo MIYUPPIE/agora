@@ -35,33 +35,38 @@ defmodule AgoraWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header :if={@current_scope} class="navbar bg-base-200 px-4 sm:px-6 lg:px-8">
-      <div class="flex-1 min-w-0">
-        <a href="/" class="flex w-fit items-center gap-2 shrink-0">
-          <img src={~p"/images/agora-mark.png"} width="28" alt="Agora" />
-          <span class="text-sm font-semibold tracking-wide">AGORA</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex items-center gap-4 text-sm">
-          <li class="hidden sm:block max-w-40 truncate text-base-content/60">
-            {@current_scope.user.email}
-          </li>
-          <li><.link href={~p"/users/settings"} class="link link-hover">Settings</.link></li>
-          <li>
-            <.link href={~p"/users/log-out"} method="delete" class="link link-hover">
-              Log out
-            </.link>
-          </li>
-        </ul>
-      </div>
-    </header>
+    <div class="min-h-screen mesh-bg flex flex-col">
+      <header
+        :if={@current_scope}
+        class="navbar bg-base-200/70 backdrop-blur-md px-4 sm:px-6 lg:px-8 sticky top-0 z-20 border-b border-white/5"
+      >
+        <div class="flex-1 min-w-0">
+          <a href="/" class="flex w-fit items-center gap-2 shrink-0">
+            <img src={~p"/images/agora-mark.png"} width="28" alt="Agora" />
+            <span class="text-sm font-semibold tracking-wide">AGORA</span>
+          </a>
+        </div>
+        <div class="flex-none">
+          <ul class="flex items-center gap-4 text-sm">
+            <li class="hidden sm:block max-w-40 truncate text-base-content/60">
+              {@current_scope.user.email}
+            </li>
+            <li><.link href={~p"/users/settings"} class="link link-hover">Settings</.link></li>
+            <li>
+              <.link href={~p"/users/log-out"} method="delete" class="link link-hover">
+                Log out
+              </.link>
+            </li>
+          </ul>
+        </div>
+      </header>
 
-    <main class={["min-h-screen flex flex-col", @current_scope && "px-4 py-12 sm:px-6 lg:px-8"]}>
-      <div class="mx-auto w-full max-w-2xl flex-1 flex flex-col justify-center">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
+      <main class={["flex-1 flex flex-col", @current_scope && "px-4 py-12 sm:px-6 lg:px-8"]}>
+        <div class="mx-auto w-full max-w-2xl flex-1 flex flex-col justify-center">
+          {render_slot(@inner_block)}
+        </div>
+      </main>
+    </div>
 
     <.flash_group flash={@flash} />
     """
