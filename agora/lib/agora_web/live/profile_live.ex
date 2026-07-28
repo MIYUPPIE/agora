@@ -159,7 +159,7 @@ defmodule AgoraWeb.ProfileLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-100">
+    <div class={["min-h-screen bg-base-100", @is_owner && "pb-24"]}>
       <div class="relative px-4 pt-6 pb-4 overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-primary via-primary to-secondary"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/5"></div>
@@ -210,40 +210,15 @@ defmodule AgoraWeb.ProfileLive do
           </div>
         </div>
 
-        <div :if={@is_owner} class="relative grid grid-cols-4 gap-2 mt-5">
-          <.action_pill
-            icon="hero-microphone"
-            label="Start Gathering"
-            phx-click={JS.navigate(~p"/gatherings/new")}
-          />
-          <.action_pill
-            icon="hero-photo"
-            label="Upload Image"
-            phx-click="open_composer"
-            phx-value-kind="image"
-          />
-          <.action_pill
-            icon="hero-megaphone"
-            label="Tidings"
-            phx-click="open_composer"
-            phx-value-kind="tiding"
-          />
-          <.action_pill
-            icon="hero-signal"
-            label="Join Gathering"
-            phx-click={JS.navigate(~p"/gatherings")}
-          />
+        <div class="relative grid grid-cols-4 gap-2 mt-5">
+          <.stat count={@post_count} label="Posts" />
+          <.stat count={@gathering_count} label="Gatherings" />
+          <.stat count={@clinger_count} label="Clingers" />
+          <.stat count={@cling_count} label="Clings" />
         </div>
       </div>
 
-      <div class="grid grid-cols-4 gap-2 py-6 px-4">
-        <.stat count={@post_count} label="Posts" />
-        <.stat count={@gathering_count} label="Gatherings" />
-        <.stat count={@clinger_count} label="Clingers" />
-        <.stat count={@cling_count} label="Clings" />
-      </div>
-
-      <div :if={@live_now != []} class="px-4 pb-4 space-y-2">
+      <div :if={@live_now != []} class="px-4 pt-4 pb-2 space-y-2">
         <.link
           :for={banner <- @live_now}
           navigate={~p"/gatherings/#{banner.id}"}
@@ -326,6 +301,37 @@ defmodule AgoraWeb.ProfileLive do
       <p :if={@posts == []} class="px-4 py-12 text-center text-base-content/50">
         No posts yet.
       </p>
+    </div>
+
+    <div
+      :if={@is_owner}
+      class="fixed bottom-0 inset-x-0 z-30 glass depth-card border-t border-white/10 px-4 pt-3"
+      style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
+    >
+      <div class="grid grid-cols-4 gap-2 max-w-2xl mx-auto">
+        <.action_pill
+          icon="hero-microphone"
+          label="Start Gathering"
+          phx-click={JS.navigate(~p"/gatherings/new")}
+        />
+        <.action_pill
+          icon="hero-photo"
+          label="Upload Image"
+          phx-click="open_composer"
+          phx-value-kind="image"
+        />
+        <.action_pill
+          icon="hero-megaphone"
+          label="Tidings"
+          phx-click="open_composer"
+          phx-value-kind="tiding"
+        />
+        <.action_pill
+          icon="hero-signal"
+          label="Join Gathering"
+          phx-click={JS.navigate(~p"/gatherings")}
+        />
+      </div>
     </div>
 
     <Layouts.flash_group flash={@flash} />
