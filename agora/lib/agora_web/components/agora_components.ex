@@ -114,6 +114,128 @@ defmodule AgoraWeb.AgoraComponents do
   end
 
   @doc """
+  A rich feed card: author + relative time, a per-kind content preview
+  (text, image grid, or an audio "track" strip), and live heart/torch
+  toggles — unlike `post_row/1`, reactions are actionable right here,
+  not just a count you'd have to open the post to change.
+  """
+  attr :post, :any, required: true
+  attr :navigate, :any, required: true
+  attr :reactions, :map, required: true
+
+  def feed_card(assigns) do
+    ~H"""
+    <div class="rounded-box glass depth-card rise-in overflow-hidden">
+      <.link navigate={@navigate} class="flex items-center gap-3 p-4 pb-3">
+        <.avatar
+          avatar_url={@post.user.profile.avatar_url}
+          display_name={@post.user.profile.display_name}
+          size="size-10"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-base-content truncate">
+            {@post.user.profile.display_name}
+          </p>
+          <p class="text-xs text-base-content/50">{time_ago(@post.inserted_at)}</p>
+        </div>
+        <.icon name={row_icon(@post.kind)} class="size-5 text-primary/70 shrink-0" />
+      </.link>
+
+      <.link navigate={@navigate} class="block px-4 pb-3">
+        <p
+          :if={@post.kind == :tiding}
+          class="text-base text-base-content whitespace-pre-line line-clamp-4"
+        >
+          {@post.body}
+        </p>
+
+        <div :if={@post.kind == :image_set}>
+          <div class={["grid gap-1 rounded-lg overflow-hidden", image_grid_class(@post.media)]}>
+            <img
+              :for={m <- Enum.take(@post.media, 4)}
+              src={m.url}
+              class="aspect-square w-full object-cover"
+            />
+          </div>
+          <p :if={@post.title not in [nil, ""]} class="mt-2 text-sm text-base-content/70">
+            {@post.title}
+          </p>
+        </div>
+
+        <div
+          :if={@post.kind == :audio}
+          class="flex items-center gap-3 rounded-lg bg-black/20 px-4 py-3"
+        >
+          <div class="flex items-center justify-center size-10 rounded-full bg-primary text-white shrink-0">
+            <.icon name="hero-play" class="size-5" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-base-content truncate">
+              {if @post.title not in [nil, ""], do: @post.title, else: "Untitled recording"}
+            </p>
+            <p :if={@post.duration_ms} class="text-xs text-base-content/50">
+              {format_duration(@post.duration_ms)}
+            </p>
+          </div>
+        </div>
+      </.link>
+
+      <div class="flex items-center gap-2 px-4 pb-4">
+        <button
+          type="button"
+          phx-click="toggle_reaction"
+          phx-value-kind="heart"
+          phx-value-post_id={@post.id}
+          class={[
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm",
+            "transition-all duration-200 active:scale-90",
+            @reactions.hearted? && "text-primary",
+            !@reactions.hearted? && "text-base-content/50 hover:text-base-content"
+          ]}
+        >
+          <.icon name="hero-heart" class="size-5" /> {@reactions.heart_count}
+        </button>
+        <button
+          type="button"
+          phx-click="toggle_reaction"
+          phx-value-kind="torch"
+          phx-value-post_id={@post.id}
+          class={[
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm",
+            "transition-all duration-200 active:scale-90",
+            @reactions.torched? && "text-primary",
+            !@reactions.torched? && "text-base-content/50 hover:text-base-content"
+          ]}
+        >
+          <.icon name="hero-fire" class="size-5" /> {@reactions.torch_count}
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp image_grid_class(media) when length(media) <= 1, do: "grid-cols-1"
+  defp image_grid_class(_media), do: "grid-cols-2"
+
+  @doc """
+  Short relative time for a feed card's timestamp — "now", "5m", "3h",
+  "2d", "1w", falling back to a plain date once it's old enough that
+  the exact day stops mattering.
+  """
+  def time_ago(datetime) do
+    diff = DateTime.diff(DateTime.utc_now(), datetime, :second)
+
+    cond do
+      diff < 60 -> "now"
+      diff < 3600 -> "#{div(diff, 60)}m"
+      diff < 86_400 -> "#{div(diff, 3600)}h"
+      diff < 604_800 -> "#{div(diff, 86_400)}d"
+      diff < 2_419_200 -> "#{div(diff, 604_800)}w"
+      true -> Calendar.strftime(datetime, "%b %-d")
+    end
+  end
+
+  @doc """
   A circular, kind-colored post preview — the horizontal "recent
   activity" strip above the feed list on the profile hub.
   """

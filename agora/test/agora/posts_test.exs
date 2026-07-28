@@ -160,6 +160,51 @@ defmodule Agora.PostsTest do
       assert_receive {:reaction_updated, post_id}
       assert post_id == post.id
     end
+
+    test "reaction_summary_for/2 batches counts and the viewer's own reactions for many posts" do
+      author = user_fixture()
+      viewer = user_fixture()
+      other = user_fixture()
+      {:ok, hearted_post} = Posts.create_tiding(author.id, %{"body" => "one"})
+      {:ok, untouched_post} = Posts.create_tiding(author.id, %{"body" => "two"})
+
+      :ok = Posts.toggle_reaction(viewer.id, hearted_post.id, :heart)
+      :ok = Posts.toggle_reaction(other.id, hearted_post.id, :heart)
+      :ok = Posts.toggle_reaction(other.id, hearted_post.id, :torch)
+
+      summary =
+        Posts.reaction_summary_for([hearted_post.id, untouched_post.id], viewer.id)
+
+      assert summary[hearted_post.id] == %{
+               heart_count: 2,
+               torch_count: 1,
+               hearted?: true,
+               torched?: false
+             }
+
+      assert summary[untouched_post.id] == %{
+               heart_count: 0,
+               torch_count: 0,
+               hearted?: false,
+               torched?: false
+             }
+    end
+
+    test "reaction_summary_for/2 marks nothing as the viewer's own when viewer_id is nil" do
+      author = user_fixture()
+      other = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "anon viewer"})
+      :ok = Posts.toggle_reaction(other.id, post.id, :heart)
+
+      summary = Posts.reaction_summary_for([post.id], nil)
+
+      assert summary[post.id] == %{
+               heart_count: 1,
+               torch_count: 0,
+               hearted?: false,
+               torched?: false
+             }
+    end
   end
 
   describe "comments" do

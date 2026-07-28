@@ -10,7 +10,7 @@ defmodule AgoraWeb.FeedLiveTest do
     user = user_fixture()
     {:ok, _lv, html} = live(log_in_user(conn, user), ~p"/feed")
 
-    assert html =~ "No posts yet"
+    assert html =~ "Your feed is quiet"
   end
 
   test "shows posts from people the user clings to, not from strangers", %{conn: conn} do
@@ -39,6 +39,30 @@ defmodule AgoraWeb.FeedLiveTest do
     {:ok, _post} = Posts.create_tiding(clinged.id, %{"body" => "breaking tiding"})
 
     assert render(lv) =~ "breaking tiding"
+  end
+
+  test "reacting to a post in the feed toggles it without navigating away", %{conn: conn} do
+    viewer = user_fixture()
+    clinged = user_fixture()
+    {:ok, _} = Social.cling(viewer.id, clinged.id)
+    {:ok, post} = Posts.create_tiding(clinged.id, %{"body" => "react to me in the feed"})
+
+    heart_selector = "button.text-primary[phx-value-post_id='#{post.id}'][phx-value-kind='heart']"
+
+    {:ok, lv, _html} = live(log_in_user(conn, viewer), ~p"/feed")
+    refute has_element?(lv, heart_selector)
+
+    html =
+      lv
+      |> element("button[phx-value-post_id='#{post.id}'][phx-value-kind='heart']")
+      |> render_click()
+
+    # still rendering the feed (not navigated/redirected away) with the
+    # reaction now reflected inline
+    assert html =~ "react to me in the feed"
+    assert has_element?(lv, heart_selector)
+    assert Posts.reacted?(viewer.id, post.id, :heart)
+    assert Posts.reaction_counts(post.id) == %{heart: 1, torch: 0}
   end
 
   test "redirects anonymous visitors to log in", %{conn: conn} do

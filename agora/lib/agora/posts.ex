@@ -147,6 +147,46 @@ defmodule Agora.Posts do
     |> then(&%{heart: Map.get(&1, :heart, 0), torch: Map.get(&1, :torch, 0)})
   end
 
+  @doc """
+  Reaction counts + the viewer's own hearted?/torched? flags for every
+  post in `post_ids`, in exactly 2 queries regardless of how many posts
+  — for rendering a feed of cards without one query pair per card.
+  """
+  def reaction_summary_for(post_ids, viewer_id) do
+    counts =
+      Reaction
+      |> where([r], r.post_id in ^post_ids)
+      |> group_by([r], [r.post_id, r.kind])
+      |> select([r], {r.post_id, r.kind, count(r.id)})
+      |> Repo.all()
+      |> Enum.group_by(fn {post_id, _kind, _count} -> post_id end, fn {_post_id, kind, count} ->
+        {kind, count}
+      end)
+
+    viewer_reacted =
+      if viewer_id do
+        Reaction
+        |> where([r], r.post_id in ^post_ids and r.user_id == ^viewer_id)
+        |> select([r], {r.post_id, r.kind})
+        |> Repo.all()
+        |> MapSet.new()
+      else
+        MapSet.new()
+      end
+
+    for post_id <- post_ids, into: %{} do
+      kinds = Map.get(counts, post_id, [])
+
+      {post_id,
+       %{
+         heart_count: Keyword.get(kinds, :heart, 0),
+         torch_count: Keyword.get(kinds, :torch, 0),
+         hearted?: MapSet.member?(viewer_reacted, {post_id, :heart}),
+         torched?: MapSet.member?(viewer_reacted, {post_id, :torch})
+       }}
+    end
+  end
+
   def reacted?(user_id, post_id, kind) do
     Reaction
     |> where(user_id: ^user_id, post_id: ^post_id, kind: ^kind)
