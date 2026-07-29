@@ -37,7 +37,7 @@ defmodule AgoraWeb.ProfileLiveTest do
 
     test "unknown profile id renders 404", %{conn: conn} do
       assert_raise Ecto.NoResultsError, fn ->
-        live(conn, ~p"/profile/999999999")
+        live(conn, ~p"/profile/#{Ecto.UUID.generate()}")
       end
     end
 
@@ -183,7 +183,7 @@ defmodule AgoraWeb.ProfileLiveTest do
 
       html =
         lv
-        |> form("form", tiding: %{body: "God moved mightily today"})
+        |> form("form[phx-submit=post_tiding]", tiding: %{body: "God moved mightily today"})
         |> render_submit()
 
       assert html =~ "God moved mightily today"
@@ -248,6 +248,57 @@ defmodule AgoraWeb.ProfileLiveTest do
       )
 
       refute render(lv) =~ "is live now"
+    end
+  end
+
+  describe "profile picture and cover picture" do
+    test "the owner can upload a new avatar and it appears immediately", %{
+      conn: conn,
+      alice: alice
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+      refute Profiles.get_or_create!(alice).avatar_url
+      assert has_element?(lv, "#avatar-form")
+
+      avatar =
+        file_input(lv, "#avatar-form", :avatar, [
+          %{name: "avatar.jpg", content: tiny_jpeg(), type: "image/jpeg"}
+        ])
+
+      render_upload(avatar, "avatar.jpg")
+
+      profile = Profiles.get_or_create!(alice)
+      assert profile.avatar_url
+      assert render(lv) =~ profile.avatar_url
+    end
+
+    test "the owner can upload a new cover picture and it appears immediately", %{
+      conn: conn,
+      alice: alice
+    } do
+      {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+      assert has_element?(lv, "#cover-form")
+
+      cover =
+        file_input(lv, "#cover-form", :cover, [
+          %{name: "cover.jpg", content: tiny_jpeg(), type: "image/jpeg"}
+        ])
+
+      render_upload(cover, "cover.jpg")
+
+      profile = Profiles.get_or_create!(alice)
+      assert profile.cover_url
+      assert render(lv) =~ profile.cover_url
+    end
+
+    test "a visitor sees no avatar or cover upload controls on someone else's profile", %{
+      conn: conn,
+      alice: alice,
+      bob: bob
+    } do
+      {:ok, _lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{bob.id}")
+      refute html =~ "avatar-form"
+      refute html =~ "cover-form"
     end
   end
 

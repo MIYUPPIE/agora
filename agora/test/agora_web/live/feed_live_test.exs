@@ -65,8 +65,58 @@ defmodule AgoraWeb.FeedLiveTest do
     assert Posts.reaction_counts(post.id) == %{heart: 1, torch: 0}
   end
 
-  test "redirects anonymous visitors to log in", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/feed")
+  test "renders public feed for anonymous visitors", %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/feed")
+    assert html =~ "Feed &amp; Tidings"
+  end
+
+  test "opening the comment modal loads that post's comments", %{conn: conn} do
+    viewer = user_fixture()
+    clinged = user_fixture()
+    {:ok, _} = Social.cling(viewer.id, clinged.id)
+    {:ok, post} = Posts.create_tiding(clinged.id, %{"body" => "comment on me"})
+    {:ok, _} = Posts.add_comment(clinged.id, post.id, "a first comment")
+
+    {:ok, lv, _html} = live(log_in_user(conn, viewer), ~p"/feed")
+
+    html =
+      lv
+      |> element("#comment-button-#{post.id}")
+      |> render_click()
+
+    assert html =~ "a first comment"
+  end
+
+  test "posting a comment from the feed appears immediately and bumps the count", %{conn: conn} do
+    viewer = user_fixture()
+    clinged = user_fixture()
+    {:ok, _} = Social.cling(viewer.id, clinged.id)
+    {:ok, post} = Posts.create_tiding(clinged.id, %{"body" => "comment on me"})
+
+    {:ok, lv, _html} = live(log_in_user(conn, viewer), ~p"/feed")
+
+    lv |> element("#comment-button-#{post.id}") |> render_click()
+
+    html =
+      lv
+      |> form("#comment-form", %{post_id: post.id, body: "Amen to that"})
+      |> render_submit()
+
+    assert html =~ "Amen to that"
+    assert [comment] = Posts.list_comments(post.id)
+    assert comment.body == "Amen to that"
+    assert comment.user_id == viewer.id
+  end
+
+  test "an anonymous visitor is redirected to log in when posting a comment", %{conn: conn} do
+    author = user_fixture()
+    {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+    {:ok, lv, _html} = live(conn, ~p"/feed")
+    lv |> element("#comment-button-#{post.id}") |> render_click()
+
+    refute has_element?(lv, "#comment-form")
+    assert has_element?(lv, "a", "Log in to join the conversation")
   end
 
   test "shows a live-now banner when a Clinger's Gathering goes live", %{conn: conn} do

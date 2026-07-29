@@ -115,7 +115,14 @@ defmodule Agora.MixProject do
         "esbuild agora --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      "test.js": ["cmd node --test assets/js/**/*.test.mjs"],
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "test.js"
+      ]
     ]
   end
 end

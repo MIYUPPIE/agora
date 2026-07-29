@@ -1,87 +1,120 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="mx-auto w-full max-w-md text-center py-8">
-    <div class="rounded-full p-1 depth-glow inline-block rise-in">
-      <img src={~p"/images/agora-mark.png"} width="96" alt="Agora" class="rounded-full" />
+  <div class="mx-auto w-full max-w-xl text-center py-6 sm:py-10">
+    <!-- Main Brand Title -->
+    <div class="mb-4 rise-in flex justify-center" style="animation-delay: 40ms">
+      <.logo
+        size="size-16 sm:size-20 md:size-24"
+        text_size="text-3xl sm:text-4xl md:text-5xl"
+        direction={:vertical}
+      />
     </div>
-
-    <h1
-      class="mt-5 text-4xl font-bold tracking-wide text-base-content rise-in"
-      style="animation-delay: 60ms"
+    <p
+      class="mt-2 text-lg sm:text-xl font-bold bg-gradient-to-r from-red-500 via-rose-500 to-red-600 bg-clip-text text-transparent rise-in"
+      style="animation-delay: 120ms"
     >
-      AGORA
-    </h1>
-    <p class="mt-2 text-lg text-primary font-medium rise-in" style="animation-delay: 100ms">
-      The gathering place
+      The Gathering Place
     </p>
-    <p class="mt-4 text-base text-base-content/70 rise-in" style="animation-delay: 140ms">
-      Go live with your voice, share a Tiding, and Cling to the people
-      whose voices matter to you — an audio-first home for your community.
+    <p
+      class="mt-4 text-base sm:text-lg text-base-content/85 font-medium leading-relaxed rise-in max-w-lg mx-auto"
+      style="animation-delay: 160ms"
+    >
+      Broadcast live audio directly from your phone or desktop browser, share audio tidings, and cling to the voices that inspire you.
     </p>
 
-    <div class="mt-8 flex flex-col gap-3 rise-in" style="animation-delay: 180ms">
-      <.link
-        navigate={~p"/users/register"}
-        class="btn btn-primary btn-lg w-full active:scale-95 transition-transform"
-      >
-        Sign Up
-      </.link>
-      <.link
-        navigate={~p"/users/log-in"}
-        class="btn btn-lg btn-outline w-full active:scale-95 transition-transform"
-      >
-        Log In
-      </.link>
-    </div>
-
-    <div class="mt-12 space-y-3 text-left">
-      <div
-        class="rounded-box glass depth-card p-4 flex items-start gap-3 rise-in"
-        style="animation-delay: 220ms"
-      >
-        <div class="flex items-center justify-center size-11 rounded-full bg-primary text-white shrink-0 depth-glow">
-          <.icon name="hero-microphone" class="size-5" />
-        </div>
-        <div>
-          <p class="font-semibold text-base-content">Gatherings</p>
-          <p class="text-sm text-base-content/60">
-            Go live with real-time audio — straight from your phone's browser, no extra app required.
-          </p>
-        </div>
+    <!-- CTAs -->
+    <div
+      class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5 rise-in"
+      style="animation-delay: 200ms"
+    >
+      <div :if={@current_scope} class="flex flex-col sm:flex-row w-full gap-3">
+        <.link
+          navigate={~p"/feed"}
+          class="btn btn-primary btn-lg flex-1 font-bold text-white shadow-xl depth-glow active:scale-95 transition-all"
+        >
+          <.icon name="hero-rectangle-stack" class="size-5" /> Open Feed
+        </.link>
+        <.link
+          navigate={~p"/gatherings/new"}
+          class="btn btn-outline btn-lg flex-1 text-base-content border-base-content/20 hover:bg-base-content/10 active:scale-95 transition-all"
+        >
+          <.icon name="hero-microphone" class="size-5 text-primary" /> Go Live
+        </.link>
       </div>
 
-      <div
-        class="rounded-box glass depth-card p-4 flex items-start gap-3 rise-in"
-        style="animation-delay: 260ms"
-      >
-        <div class="flex items-center justify-center size-11 rounded-full bg-primary text-white shrink-0 depth-glow">
-          <.icon name="hero-megaphone" class="size-5" />
-        </div>
-        <div>
-          <p class="font-semibold text-base-content">Tidings</p>
-          <p class="text-sm text-base-content/60">
-            Share a thought, a photo, or a voice note — quick posts for the people who cling to you.
-          </p>
-        </div>
-      </div>
-
-      <div
-        class="rounded-box glass depth-card p-4 flex items-start gap-3 rise-in"
-        style="animation-delay: 300ms"
-      >
-        <div class="flex items-center justify-center size-11 rounded-full bg-primary text-white shrink-0 depth-glow">
-          <.icon name="hero-user-group" class="size-5" />
-        </div>
-        <div>
-          <p class="font-semibold text-base-content">Clings</p>
-          <p class="text-sm text-base-content/60">
-            Follow the people whose voices matter to you, and never miss when they go live.
-          </p>
-        </div>
+      <div :if={!@current_scope} class="flex flex-col sm:flex-row w-full gap-3">
+        <.link
+          navigate={~p"/users/register"}
+          class="btn btn-primary btn-lg flex-1 font-bold text-white shadow-xl depth-glow active:scale-95 transition-all"
+        >
+          Create Account
+        </.link>
+        <.link
+          navigate={~p"/users/log-in"}
+          class="btn btn-outline btn-lg flex-1 text-base-content border-base-content/20 hover:bg-base-content/10 active:scale-95 transition-all"
+        >
+          Log In
+        </.link>
       </div>
     </div>
 
-    <p class="mt-10 text-xs text-base-content/40 rise-in" style="animation-delay: 340ms">
-      &copy; {Date.utc_today().year} Agora
-    </p>
+    <!-- Feature Cards Grid -->
+    <div class="mt-12 space-y-4 text-left">
+      <div
+        class="rounded-2xl bg-base-200/90 depth-card p-5 flex items-start gap-4 rise-in border border-base-content/10 hover:border-primary/40 transition-all duration-300"
+        style="animation-delay: 240ms"
+      >
+        <div class="flex items-center justify-center size-12 rounded-2xl bg-gradient-to-br from-primary to-rose-600 text-white shrink-0 depth-glow">
+          <.icon name="hero-microphone" class="size-6" />
+        </div>
+        <div>
+          <h3 class="font-display font-bold text-base text-base-content">Live Gatherings</h3>
+          <p class="mt-1 text-sm text-base-content/70 leading-relaxed">
+            Host real-time audio rooms straight from your browser. Ultra-optimized for mobile networks without requiring any application download.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="rounded-2xl bg-base-200/90 depth-card p-5 flex items-start gap-4 rise-in border border-base-content/10 hover:border-primary/40 transition-all duration-300"
+        style="animation-delay: 280ms"
+      >
+        <div class="flex items-center justify-center size-12 rounded-2xl bg-gradient-to-br from-primary to-rose-600 text-white shrink-0 depth-glow">
+          <.icon name="hero-megaphone" class="size-6" />
+        </div>
+        <div>
+          <h3 class="font-display font-bold text-base text-base-content">
+            Tidings & Voice Notes
+          </h3>
+          <p class="mt-1 text-sm text-base-content/70 leading-relaxed">
+            Publish voice tidings, photo sets, and thoughts to your profile feed for your community to stream anytime.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="rounded-2xl bg-base-200/90 depth-card p-5 flex items-start gap-4 rise-in border border-base-content/10 hover:border-primary/40 transition-all duration-300"
+        style="animation-delay: 320ms"
+      >
+        <div class="flex items-center justify-center size-12 rounded-2xl bg-gradient-to-br from-primary to-rose-600 text-white shrink-0 depth-glow">
+          <.icon name="hero-user-group" class="size-6" />
+        </div>
+        <div>
+          <h3 class="font-display font-bold text-base text-base-content">
+            Clings & Notifications
+          </h3>
+          <p class="mt-1 text-sm text-base-content/70 leading-relaxed">
+            Cling to your favorite hosts and friends so you get live notification alerts the second they start broadcasting.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Copyright -->
+    <div
+      class="mt-12 pt-6 border-t border-base-content/5 text-center text-xs text-base-content/40 rise-in"
+      style="animation-delay: 360ms"
+    >
+      &copy; {Date.utc_today().year} AGORA · Audio-First Social Infrastructure
+    </div>
   </div>
 </Layouts.app>

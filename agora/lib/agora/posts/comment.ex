@@ -2,6 +2,8 @@ defmodule Agora.Posts.Comment do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "comments" do
     belongs_to :user, Agora.Accounts.User
     belongs_to :post, Agora.Posts.Post

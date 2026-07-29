@@ -2,8 +2,9 @@ defmodule Agora.Repo.Migrations.CreateGatherings do
   use Ecto.Migration
 
   def change do
-    create table(:gatherings) do
-      add :user_id, references(:users, on_delete: :delete_all), null: false
+    create table(:gatherings, primary_key: false) do
+      add :id, :binary_id, primary_key: true
+      add :user_id, references(:users, type: :binary_id, on_delete: :delete_all), null: false
       add :title, :string, null: false
       add :status, :string, null: false, default: "scheduled"
       add :stream_key, :string, null: false

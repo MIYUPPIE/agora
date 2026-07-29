@@ -2,6 +2,8 @@ defmodule Agora.Posts.PostMedia do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "post_media" do
     belongs_to :post, Agora.Posts.Post
 

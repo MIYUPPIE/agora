@@ -122,17 +122,36 @@ defmodule Agora.Posts do
     |> Repo.all()
   end
 
-  @doc "Posts from everyone `user_id` clings to, newest first — the main feed."
-  def list_feed_for(user_id, opts \\ []) do
+  @doc "Posts from everyone `user_id` clings to (or recent public posts if nil/empty), newest first — the main feed."
+  def list_feed_for(user_id, opts \\ [])
+
+  def list_feed_for(nil, opts) do
     limit = Keyword.get(opts, :limit, 50)
-    clinged_ids = Social.clinged_ids(user_id)
 
     Post
-    |> where([p], p.user_id in ^clinged_ids)
     |> order_by(desc: :inserted_at, desc: :id)
     |> limit(^limit)
     |> preload([:media, user: :profile])
     |> Repo.all()
+  end
+
+  def list_feed_for(user_id, opts) do
+    limit = Keyword.get(opts, :limit, 50)
+    clinged_ids = Social.clinged_ids(user_id)
+
+    posts =
+      Post
+      |> where([p], p.user_id in ^clinged_ids)
+      |> order_by(desc: :inserted_at, desc: :id)
+      |> limit(^limit)
+      |> preload([:media, user: :profile])
+      |> Repo.all()
+
+    if posts == [] do
+      list_feed_for(nil, opts)
+    else
+      posts
+    end
   end
 
   # ── Reactions ────────────────────────────────────────────────────────────
@@ -211,10 +230,19 @@ defmodule Agora.Posts do
 
   # ── Comments ─────────────────────────────────────────────────────────────
 
+  @doc "Adds a comment and broadcasts it on the post's topic (see PostLive.Show)."
   def add_comment(user_id, post_id, body) do
     %Comment{}
     |> Comment.changeset(%{user_id: user_id, post_id: post_id, body: body})
     |> Repo.insert()
+    |> case do
+      {:ok, comment} ->
+        Phoenix.PubSub.broadcast(Agora.PubSub, "post:#{post_id}", {:comment_added, post_id})
+        {:ok, comment}
+
+      error ->
+        error
+    end
   end
 
   def list_comments(post_id) do
@@ -223,5 +251,26 @@ defmodule Agora.Posts do
     |> order_by(asc: :inserted_at)
     |> preload(user: :profile)
     |> Repo.all()
+  end
+
+  def comment_count(post_id) do
+    Comment |> where(post_id: ^post_id) |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Comment counts for every post in `post_ids` in a single query — same
+  batching approach as `reaction_summary_for/2`, for rendering a feed of
+  cards without one query per card.
+  """
+  def comment_counts_for(post_ids) do
+    counts =
+      Comment
+      |> where([c], c.post_id in ^post_ids)
+      |> group_by([c], c.post_id)
+      |> select([c], {c.post_id, count(c.id)})
+      |> Repo.all()
+      |> Map.new()
+
+    for post_id <- post_ids, into: %{}, do: {post_id, Map.get(counts, post_id, 0)}
   end
 end

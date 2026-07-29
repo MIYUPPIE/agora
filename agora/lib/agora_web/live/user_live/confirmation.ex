@@ -7,12 +7,13 @@ defmodule AgoraWeb.UserLive.Confirmation do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+      <div class="mx-auto max-w-sm py-4">
         <.auth_logo />
 
-        <div class="rounded-box glass depth-card p-6 rise-in">
-          <div class="text-center mb-4">
-            <.header>Welcome {@user.email}</.header>
+        <div class="glass depth-card rounded-2xl p-6 rise-in border border-base-content/10 space-y-4">
+          <div class="text-center">
+            <h2 class="font-display text-lg font-bold text-base-content">Welcome, {@user.email}</h2>
+            <p class="text-xs text-base-content/60 mt-1">Confirm your session to enter AGORA</p>
           </div>
 
           <.form
@@ -23,19 +24,20 @@ defmodule AgoraWeb.UserLive.Confirmation do
             phx-submit="submit"
             action={~p"/users/log-in?_action=confirmed"}
             phx-trigger-action={@trigger_submit}
+            class="space-y-2.5"
           >
             <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
             <.button
               name={@form[:remember_me].name}
               value="true"
               phx-disable-with="Confirming..."
-              class="btn btn-primary w-full active:scale-95 transition-transform"
+              class="btn btn-primary w-full h-12 text-xs font-bold text-white depth-glow active:scale-[0.97] transition-all"
             >
               Confirm and stay logged in
             </.button>
             <.button
               phx-disable-with="Confirming..."
-              class="btn btn-primary btn-outline w-full mt-2 active:scale-95 transition-transform"
+              class="btn btn-outline w-full h-11 text-xs font-bold border-base-content/20 hover:bg-base-content/10 active:scale-[0.97] transition-all"
             >
               Confirm and log in only this time
             </.button>
@@ -49,12 +51,13 @@ defmodule AgoraWeb.UserLive.Confirmation do
             phx-mounted={JS.focus_first()}
             action={~p"/users/log-in"}
             phx-trigger-action={@trigger_submit}
+            class="space-y-2.5"
           >
             <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
             <%= if @current_scope do %>
               <.button
                 phx-disable-with="Logging in..."
-                class="btn btn-primary w-full active:scale-95 transition-transform"
+                class="btn btn-primary w-full h-12 text-xs font-bold text-white depth-glow active:scale-[0.97] transition-all"
               >
                 Log in
               </.button>
@@ -63,22 +66,25 @@ defmodule AgoraWeb.UserLive.Confirmation do
                 name={@form[:remember_me].name}
                 value="true"
                 phx-disable-with="Logging in..."
-                class="btn btn-primary w-full active:scale-95 transition-transform"
+                class="btn btn-primary w-full h-12 text-xs font-bold text-white depth-glow active:scale-[0.97] transition-all"
               >
                 Keep me logged in on this device
               </.button>
               <.button
                 phx-disable-with="Logging in..."
-                class="btn btn-primary btn-outline w-full mt-2 active:scale-95 transition-transform"
+                class="btn btn-outline w-full h-11 text-xs font-bold border-base-content/20 hover:bg-base-content/10 active:scale-[0.97] transition-all"
               >
                 Log me in only this time
               </.button>
             <% end %>
           </.form>
 
-          <p :if={!@user.confirmed_at} class="alert alert-outline mt-6 text-sm">
-            Tip: If you prefer passwords, you can enable them in the user settings.
-          </p>
+          <div
+            :if={!@user.confirmed_at}
+            class="p-3 rounded-xl bg-base-content/5 border border-base-content/5 text-[11px] text-base-content/70"
+          >
+            Tip: You can enable password login anytime in your account settings.
+          </div>
         </div>
       </div>
     </Layouts.app>

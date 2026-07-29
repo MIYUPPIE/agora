@@ -4,22 +4,22 @@ defmodule AgoraWeb.UserLive.Registration do
   alias Agora.Accounts
   alias Agora.Accounts.User
 
-  @input_class "w-full input border-none bg-primary text-black/80 placeholder:text-black/50 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary-content/40"
+  @input_class "w-full input border border-base-content/10 bg-base-100/80 text-base-content placeholder:text-base-content/40 h-12 text-sm rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto w-full max-w-sm">
+      <div class="mx-auto w-full max-w-sm py-4">
         <.auth_logo />
 
         <div
           id="registration-card"
           phx-hook="Tilt"
-          class="tilt glass depth-card rounded-box p-6 rise-in"
+          class="tilt glass depth-card rounded-2xl p-6 rise-in border border-base-content/10"
           style="animation-delay: 80ms"
         >
-          <p class="mb-4 text-center text-sm text-base-content/70">
+          <p class="mb-4 text-center text-xs text-base-content/70 leading-relaxed">
             We'll email you a link to confirm your account — no password needed yet.
           </p>
 
@@ -33,7 +33,7 @@ defmodule AgoraWeb.UserLive.Registration do
             <.input
               field={@form[:email]}
               type="email"
-              placeholder="Email"
+              placeholder="Email address"
               autocomplete="username"
               spellcheck="false"
               required
@@ -43,16 +43,16 @@ defmodule AgoraWeb.UserLive.Registration do
 
             <.button
               phx-disable-with="Creating account..."
-              class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform"
+              class="btn btn-primary w-full h-12 text-sm font-bold text-white depth-glow active:scale-[0.97] transition-all"
             >
-              Sign Up
+              Create Account
             </.button>
           </.form>
 
-          <div class="mt-6 text-center text-sm">
+          <div class="mt-6 text-center text-xs">
             <.link
               navigate={~p"/users/log-in"}
-              class="font-semibold text-base-content hover:underline"
+              class="font-bold text-base-content hover:text-primary transition-colors"
             >
               Already have an account? Log in
             </.link>

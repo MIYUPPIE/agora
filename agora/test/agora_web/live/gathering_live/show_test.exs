@@ -36,14 +36,14 @@ defmodule AgoraWeb.GatheringLive.ShowTest do
       refute html =~ "HlsPlayer"
     end
 
-    test "redirects anonymous visitors to log in", %{conn: _conn} do
+    test "allows anonymous visitors to join live gathering", %{conn: conn} do
       broadcaster = user_fixture()
 
       {:ok, gathering} =
         Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
 
-      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
-               live(build_conn(), ~p"/gatherings/#{gathering.id}")
+      {:ok, _lv, html} = live(conn, ~p"/gatherings/#{gathering.id}")
+      assert html =~ "Sunday service"
     end
   end
 

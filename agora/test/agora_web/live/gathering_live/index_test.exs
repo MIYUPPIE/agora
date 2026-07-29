@@ -27,7 +27,8 @@ defmodule AgoraWeb.GatheringLive.IndexTest do
     assert html =~ "No one is live right now"
   end
 
-  test "redirects anonymous visitors to log in", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/gatherings")
+  test "renders gatherings list for anonymous visitors", %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/gatherings")
+    assert html =~ "Live now"
   end
 end

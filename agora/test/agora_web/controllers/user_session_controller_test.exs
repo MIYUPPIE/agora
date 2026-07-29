@@ -20,9 +20,9 @@ defmodule AgoraWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
 
-      # "/" redirects signed-in users to their profile hub; assert on the account menu there
+      # "/" redirects signed-in users to their feed; assert on the account menu on their profile hub
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      assert redirected_to(conn) == ~p"/feed"
       conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
       assert response =~ ~p"/users/settings"
@@ -85,9 +85,9 @@ defmodule AgoraWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
 
-      # "/" redirects signed-in users to their profile hub; assert on the account menu there
+      # "/" redirects signed-in users to their feed; assert on the account menu on their profile hub
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      assert redirected_to(conn) == ~p"/feed"
       conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
       assert response =~ ~p"/users/settings"
@@ -110,9 +110,9 @@ defmodule AgoraWeb.UserSessionControllerTest do
 
       assert Accounts.get_user!(user.id).confirmed_at
 
-      # "/" redirects signed-in users to their profile hub; assert on the account menu there
+      # "/" redirects signed-in users to their feed; assert on the account menu on their profile hub
       conn = get(conn, ~p"/")
-      assert redirected_to(conn) == ~p"/profile/#{user.id}"
+      assert redirected_to(conn) == ~p"/feed"
       conn = get(conn, ~p"/profile/#{user.id}")
       response = html_response(conn, 200)
       assert response =~ ~p"/users/settings"

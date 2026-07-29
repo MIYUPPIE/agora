@@ -43,6 +43,22 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
+// Day/night theme toggle. Delegated on `document` (rather than a
+// phx-hook) so it keeps working after LiveView patches the nav bars,
+// regardless of which LiveView is currently rendering them.
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme)
+  localStorage.setItem("theme", theme)
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute("content", theme === "agora-light" ? "#ffffff" : "#0b0b0e")
+}
+document.addEventListener("click", e => {
+  const toggle = e.target.closest("[data-theme-toggle]")
+  if (!toggle) return
+  const current = document.documentElement.getAttribute("data-theme")
+  applyTheme(current === "agora-light" ? "agora" : "agora-light")
+})
+
 // Register the PWA service worker — required by Chrome/Android's
 // installability check (the manifest alone satisfies iOS Safari, but not
 // Chrome's "Add to Home Screen" prompt).

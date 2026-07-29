@@ -67,114 +67,168 @@ defmodule AgoraWeb.GatheringLive.New do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="max-w-lg mx-auto">
-        <h1 class="text-xl font-bold text-base-content mb-4 rise-in">Start a Gathering</h1>
+      <div class="max-w-xl mx-auto py-2 font-sans">
+        <!-- Title Header -->
+        <div class="flex items-center gap-3 mb-5">
+          <div class="flex items-center justify-center size-9 rounded-xl bg-primary/10 text-primary">
+            <.icon name="hero-microphone" class="size-5" />
+          </div>
+          <div>
+            <h1 class="font-display text-xl font-bold text-base-content tracking-wide">
+              Broadcast Studio
+            </h1>
+            <p class="text-xs text-base-content/50">Configure &amp; launch your live audio room</p>
+          </div>
+        </div>
 
-        <div :if={@gathering} class="space-y-6">
+        <!-- Initial Setup Form Card -->
+        <form
+          :if={!@gathering}
+          class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-6 space-y-4"
+          phx-submit="create"
+        >
+          <div class="border-b border-base-content/[0.06] pb-3">
+            <h3 class="font-display text-base font-bold text-base-content">Create New Broadcast</h3>
+            <p class="text-xs text-base-content/50 mt-0.5">
+              Give your live audio gathering a title to generate ingest credentials
+            </p>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold uppercase tracking-wider text-base-content/70">Gathering Title</label>
+            <input
+              type="text"
+              name="gathering[title]"
+              placeholder="What topic are we gathering for today?"
+              class="input w-full well border-base-content/10 text-base-content placeholder:text-base-content/30 focus:border-primary focus:ring-1 focus:ring-primary h-11 text-sm rounded-xl"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-primary font-bold text-xs active:scale-95 transition-all w-full h-11 rounded-xl"
+          >
+            <.icon name="hero-sparkles" class="size-4" /> Initialize Gathering Studio
+          </button>
+        </form>
+
+        <div :if={@gathering} class="space-y-4">
+          <!-- Browser Broadcast Control Box -->
           <div
             id="browser-broadcast"
             phx-hook="BrowserBroadcast"
             phx-update="ignore"
             data-gathering-id={@gathering.id}
             data-token={@broadcast_token}
-            class="rounded-box glass depth-card p-4 space-y-3 rise-in"
+            class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-4"
           >
-            <p class="text-base-content/80 text-sm">
-              Go live right from this device — no extra software needed.
-            </p>
+            <div class="flex items-center justify-between border-b border-base-content/[0.06] pb-3">
+              <div>
+                <h3 class="font-display text-base font-bold text-base-content">
+                  Browser Microphone Studio
+                </h3>
+                <p class="text-xs text-base-content/50">
+                  Broadcast directly from this device's microphone
+                </p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-base-content/[0.05] text-[10px] font-mono text-base-content/60 border border-base-content/[0.06]">
+                WebRTC Ingest
+              </span>
+            </div>
 
-            <div data-role="idle" class="space-y-2">
+            <div data-role="idle" class="space-y-3">
               <button
                 type="button"
                 data-action="start"
-                class="btn btn-primary w-full gap-2 active:scale-95 transition-transform"
+                class="btn btn-primary btn-lg w-full font-bold text-white shadow active:scale-95 transition-all gap-2 rounded-xl"
               >
-                <.icon name="hero-microphone" class="size-5" /> Go Live From This Device
+                <.icon name="hero-microphone" class="size-6" /> Go Live From This Device
               </button>
-              <p data-role="unsupported" class="hidden text-xs text-warning">
-                Your browser doesn't support broadcasting directly — use the OBS option below instead.
+              <p
+                data-role="unsupported"
+                class="hidden text-xs text-warning bg-warning/10 p-2.5 rounded-lg border border-warning/20"
+              >
+                Your browser doesn't support WebRTC broadcasting — use the OBS option below.
               </p>
             </div>
 
-            <div data-role="live" class="hidden flex items-center justify-between">
-              <div class="flex items-center gap-2 text-error">
-                <span class="inline-block size-2 rounded-full bg-error motion-safe:animate-pulse"></span>
-                <span class="text-sm font-medium">Broadcasting from this device</span>
+            <div
+              data-role="live"
+              class="hidden flex items-center justify-between bg-primary/10 p-4 rounded-xl border border-primary/20"
+            >
+              <div class="flex items-center gap-2.5 text-primary">
+                <span class="inline-block size-3 rounded-full bg-primary motion-safe:animate-ping"></span>
+                <span class="text-sm font-bold">Broadcasting from this device</span>
               </div>
               <button
                 type="button"
                 data-action="stop"
-                class="btn btn-sm btn-outline active:scale-95 transition-transform"
+                class="btn btn-sm btn-error font-bold text-xs active:scale-95 transition-all"
               >
                 Stop
               </button>
             </div>
 
-            <p data-role="error" class="hidden text-xs text-error"></p>
+            <p
+              data-role="error"
+              class="hidden text-xs text-error bg-error/10 p-2.5 rounded-lg border border-error/20"
+            >
+            </p>
           </div>
 
-          <div
-            class="collapse collapse-arrow glass depth-card rounded-box rise-in"
-            style="animation-delay: 60ms"
-          >
+          <!-- OBS RTMP Accordion -->
+          <div class="collapse collapse-arrow bg-base-200/60 border border-base-content/[0.06] rounded-2xl">
             <input type="checkbox" />
-            <div class="collapse-title text-sm text-base-content/70">
-              Broadcasting with OBS or another encoder instead?
+            <div class="collapse-title text-sm font-bold text-base-content/90 flex items-center gap-2">
+              <.icon name="hero-video-camera" class="size-4 text-primary" />
+              Use External Encoder (OBS / Streamlabs RTMP)
             </div>
-            <div class="collapse-content space-y-3">
-              <p class="text-base-content/80 text-sm">
-                Point your encoder at this ingest URL:
+            <div class="collapse-content space-y-3 pt-2">
+              <p class="text-xs text-base-content/60">
+                Point your streaming encoder (OBS, Audio Hijack, or hardware mixer) to this RTMP Ingest URL:
               </p>
-              <code class="block bg-black/20 p-3 rounded text-sm break-all text-primary">
-                {Gatherings.ingest_url(@gathering)}
-              </code>
-              <p class="text-xs text-base-content/50">
-                Set your encoder's audio bitrate to 48–64 kbps AAC-HE (voice) — it
-                costs your listeners far less data and rarely matters for speech.
-                Use 128 kbps only if you're gathering around music.
-              </p>
+              <div class="relative group">
+                <code class="block well p-3.5 rounded-xl text-xs font-mono break-all text-primary border border-primary/20">
+                  {Gatherings.ingest_url(@gathering)}
+                </code>
+              </div>
+              <div class="p-3 rounded-xl bg-base-content/[0.03] border border-base-content/[0.04] space-y-1">
+                <p class="text-[11px] font-bold text-base-content">Recommended Audio Bitrate:</p>
+                <p class="text-[11px] text-base-content/50 leading-relaxed">
+                  Set audio bitrate to <strong class="text-primary">48–64 kbps AAC-HE</strong>
+                  for speech. This drastically minimizes data usage for mobile listeners without sacrificing voice clarity.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div :if={!@live?} class="flex items-center gap-2 text-base-content/60">
-            <span class="loading loading-spinner loading-sm"></span>
+          <!-- Live Status Banner -->
+          <div
+            :if={!@live?}
+            class="flex items-center justify-center gap-2.5 p-4 rounded-xl bg-base-200/40 text-xs text-base-content/60 border border-base-content/[0.04]"
+          >
+            <span class="loading loading-spinner loading-xs text-primary"></span>
             <span>Waiting for your broadcast to start…</span>
           </div>
 
           <div
             :if={@live?}
-            class="flex items-center justify-between rounded-box bg-primary depth-glow px-4 py-3 text-white rise-in"
+            class="flex items-center justify-between rounded-2xl bg-gradient-to-r from-primary to-rose-600 p-4 text-white shadow"
           >
-            <div class="flex items-center gap-2">
-              <span class="inline-block size-2 rounded-full bg-white motion-safe:animate-pulse"></span>
-              <span class="text-sm font-medium">You're live — listeners can join now</span>
+            <div class="flex items-center gap-2.5">
+              <span class="inline-block size-3 rounded-full bg-white motion-safe:animate-ping"></span>
+              <span class="text-sm font-bold">You're live — listeners can join now</span>
             </div>
             <a
               href={~p"/gatherings/#{@gathering.id}"}
               target="_blank"
-              class="btn btn-xs bg-black/70 text-white border-none hover:bg-black/90 active:scale-95 transition-transform"
+              class="btn btn-sm bg-black/60 text-white border-none hover:bg-black/80 font-bold text-xs active:scale-95 transition-all shadow"
             >
-              View as a listener
+              <.icon name="hero-arrow-top-right-on-square" class="size-4" /> View as a listener
             </a>
           </div>
         </div>
-
-        <form
-          :if={!@gathering}
-          class="rounded-box glass depth-card p-6 space-y-4 rise-in"
-          phx-submit="create"
-        >
-          <input
-            type="text"
-            name="gathering[title]"
-            placeholder="What are we gathering for?"
-            class="input w-full bg-base-100/60"
-            required
-          />
-          <button type="submit" class="btn btn-primary w-full active:scale-95 transition-transform">
-            Start Gathering
-          </button>
-        </form>
       </div>
     </Layouts.app>
     """

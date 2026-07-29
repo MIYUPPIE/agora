@@ -2,6 +2,8 @@ defmodule Agora.Social.Cling do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "clings" do
     belongs_to :clinger, Agora.Accounts.User
     belongs_to :clinged, Agora.Accounts.User

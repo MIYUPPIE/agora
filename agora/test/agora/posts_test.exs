@@ -100,6 +100,7 @@ defmodule Agora.PostsTest do
       alice = user_fixture()
       bob = user_fixture()
       {:ok, older} = Posts.create_tiding(alice.id, %{"body" => "first"})
+      Process.sleep(50)
       {:ok, newer} = Posts.create_tiding(alice.id, %{"body" => "second"})
       {:ok, _bobs} = Posts.create_tiding(bob.id, %{"body" => "not alice's"})
 
@@ -216,6 +217,44 @@ defmodule Agora.PostsTest do
       assert {:ok, _comment} = Posts.add_comment(commenter.id, post.id, "Amen!")
       assert [comment] = Posts.list_comments(post.id)
       assert comment.body == "Amen!"
+    end
+
+    test "add_comment broadcasts on the post's topic" do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      Phoenix.PubSub.subscribe(Agora.PubSub, "post:#{post.id}")
+      assert {:ok, _comment} = Posts.add_comment(commenter.id, post.id, "Amen!")
+
+      assert_receive {:comment_added, post_id}
+      assert post_id == post.id
+    end
+
+    test "comment_count/1 counts comments on a single post" do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      assert Posts.comment_count(post.id) == 0
+      {:ok, _} = Posts.add_comment(commenter.id, post.id, "one")
+      {:ok, _} = Posts.add_comment(commenter.id, post.id, "two")
+      assert Posts.comment_count(post.id) == 2
+    end
+
+    test "comment_counts_for/1 batches counts for many posts in one query" do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, commented_post} = Posts.create_tiding(author.id, %{"body" => "one"})
+      {:ok, untouched_post} = Posts.create_tiding(author.id, %{"body" => "two"})
+
+      {:ok, _} = Posts.add_comment(commenter.id, commented_post.id, "Amen!")
+      {:ok, _} = Posts.add_comment(commenter.id, commented_post.id, "Preach!")
+
+      counts = Posts.comment_counts_for([commented_post.id, untouched_post.id])
+
+      assert counts[commented_post.id] == 2
+      assert counts[untouched_post.id] == 0
     end
   end
 end

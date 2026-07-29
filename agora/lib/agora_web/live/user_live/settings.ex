@@ -9,34 +9,57 @@ defmodule AgoraWeb.UserLive.Settings do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto w-full max-w-sm space-y-6">
-        <div class="text-center">
-          <.header>
-            Account Settings
-            <:subtitle>Manage your account email address and password settings</:subtitle>
-          </.header>
+      <div class="mx-auto w-full max-w-md space-y-6 py-2">
+        <div class="flex items-center gap-3 border-b border-base-content/10 pb-4 rise-in">
+          <div class="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-primary to-rose-600 text-white depth-glow">
+            <.icon name="hero-cog-6-tooth" class="size-5" />
+          </div>
+          <div>
+            <h1 class="font-display text-xl font-extrabold text-base-content tracking-wide">
+              Account Settings
+            </h1>
+            <p class="text-xs text-base-content/60">Manage your email and security preferences</p>
+          </div>
         </div>
 
-        <div class="rounded-box glass depth-card p-6 rise-in">
+        <!-- Change Email Form Card -->
+        <div class="rounded-2xl glass depth-card p-6 rise-in border border-base-content/10 space-y-4">
+          <h3 class="font-display text-sm font-bold text-base-content flex items-center gap-2">
+            <.icon name="hero-envelope" class="size-4 text-primary" /> Email Address
+          </h3>
           <.form
             for={@email_form}
             id="email_form"
             phx-submit="update_email"
             phx-change="validate_email"
+            class="space-y-4"
           >
             <.input
               field={@email_form[:email]}
               type="email"
-              label="Email"
+              label="Email Address"
               autocomplete="username"
               spellcheck="false"
               required
             />
-            <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
+            <.button
+              variant="primary"
+              phx-disable-with="Changing..."
+              class="btn btn-primary font-bold text-xs depth-glow active:scale-95 transition-all"
+            >
+              Change Email
+            </.button>
           </.form>
         </div>
 
-        <div class="rounded-box glass depth-card p-6 rise-in" style="animation-delay: 60ms">
+        <!-- Change Password Form Card -->
+        <div
+          class="rounded-2xl glass depth-card p-6 rise-in border border-base-content/10 space-y-4"
+          style="animation-delay: 60ms"
+        >
+          <h3 class="font-display text-sm font-bold text-base-content flex items-center gap-2">
+            <.icon name="hero-lock-closed" class="size-4 text-primary" /> Security & Password
+          </h3>
           <.form
             for={@password_form}
             id="password_form"
@@ -45,6 +68,7 @@ defmodule AgoraWeb.UserLive.Settings do
             phx-change="validate_password"
             phx-submit="update_password"
             phx-trigger-action={@trigger_submit}
+            class="space-y-4"
           >
             <input
               name={@password_form[:email].name}
@@ -56,7 +80,7 @@ defmodule AgoraWeb.UserLive.Settings do
             <.input
               field={@password_form[:password]}
               type="password"
-              label="New password"
+              label="New Password"
               autocomplete="new-password"
               spellcheck="false"
               required
@@ -64,11 +88,15 @@ defmodule AgoraWeb.UserLive.Settings do
             <.input
               field={@password_form[:password_confirmation]}
               type="password"
-              label="Confirm new password"
+              label="Confirm New Password"
               autocomplete="new-password"
               spellcheck="false"
             />
-            <.button variant="primary" phx-disable-with="Saving...">
+            <.button
+              variant="primary"
+              phx-disable-with="Saving..."
+              class="btn btn-primary font-bold text-xs depth-glow active:scale-95 transition-all"
+            >
               Save Password
             </.button>
           </.form>

@@ -81,7 +81,7 @@ defmodule AgoraWeb.PostLive.ShowTest do
     end
 
     test "unknown post id renders 404", %{conn: conn} do
-      assert_raise Ecto.NoResultsError, fn -> live(conn, ~p"/posts/999999999") end
+      assert_raise Ecto.NoResultsError, fn -> live(conn, ~p"/posts/#{Ecto.UUID.generate()}") end
     end
   end
 
@@ -139,6 +139,61 @@ defmodule AgoraWeb.PostLive.ShowTest do
 
       assert Posts.reaction_counts(post.id) == %{heart: 1, torch: 1}
       assert html =~ ">1<"
+    end
+  end
+
+  describe "comments" do
+    test "existing comments render on page load", %{conn: conn} do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+      {:ok, _} = Posts.add_comment(commenter.id, post.id, "well said")
+
+      {:ok, _lv, html} = live(conn, ~p"/posts/#{post.id}")
+      assert html =~ "well said"
+    end
+
+    test "a signed-in viewer can post a comment and see it appear", %{conn: conn} do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      {:ok, lv, _html} = live(log_in_user(conn, commenter), ~p"/posts/#{post.id}")
+
+      lv |> element("#comment-button-#{post.id}") |> render_click()
+
+      html =
+        lv
+        |> form("#comment-form", %{post_id: post.id, body: "God is good"})
+        |> render_submit()
+
+      assert html =~ "God is good"
+      assert [comment] = Posts.list_comments(post.id)
+      assert comment.body == "God is good"
+      assert comment.user_id == commenter.id
+    end
+
+    test "a comment from another viewer updates this view live", %{conn: conn} do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      {:ok, lv, _html} = live(conn, ~p"/posts/#{post.id}")
+
+      {:ok, _} = Posts.add_comment(commenter.id, post.id, "arrived via pubsub")
+
+      assert render(lv) =~ "arrived via pubsub"
+    end
+
+    test "an anonymous visitor sees a log-in prompt instead of the comment form", %{conn: conn} do
+      author = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      {:ok, lv, _html} = live(conn, ~p"/posts/#{post.id}")
+      lv |> element("#comment-button-#{post.id}") |> render_click()
+
+      refute has_element?(lv, "#comment-form")
+      assert has_element?(lv, "a", "Log in to join the conversation")
     end
   end
 end

@@ -22,26 +22,34 @@ defmodule AgoraWeb.GatheringLive.Show do
   def mount(%{"id" => id}, _session, socket) do
     gathering = Gatherings.get!(id)
     topic = "gathering:#{gathering.id}"
-    user = socket.assigns.current_scope.user
-    viewer_profile = Profiles.get_or_create!(user)
+    user = socket.assigns.current_scope && socket.assigns.current_scope.user
+    viewer_profile = if user, do: Profiles.get_or_create!(user), else: %{display_name: "Listener"}
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Agora.PubSub, topic)
       Phoenix.PubSub.subscribe(Agora.PubSub, "#{topic}:segments")
-      Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{user.id}:recordings")
 
-      {:ok, _} =
-        Presence.track(self(), topic, user.id, %{
-          joined_at: System.system_time(:second)
-        })
+      if user do
+        Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{user.id}:recordings")
+
+        {:ok, _} =
+          Presence.track(self(), topic, user.id, %{joined_at: System.system_time(:second)})
+      else
+        {:ok, _} =
+          Presence.track(self(), topic, "anon:#{Ecto.UUID.generate()}", %{
+            joined_at: System.system_time(:second)
+          })
+      end
     end
+
+    recording = if user, do: Recordings.active_for(user.id, gathering.id), else: nil
 
     {:ok,
      socket
      |> assign(:gathering, gathering)
      |> assign(:viewer_profile, viewer_profile)
      |> assign(:listener_count, topic |> Presence.list() |> map_size())
-     |> assign(:recording, Recordings.active_for(user.id, gathering.id))
+     |> assign(:recording, recording)
      |> assign(:head_sequence, Media.current_sequence(gathering.id))
      |> assign(:download_url, nil)
      |> assign(:chat_messages, [])
@@ -53,36 +61,56 @@ defmodule AgoraWeb.GatheringLive.Show do
 
   @impl true
   def handle_event("record", _params, socket) do
-    user = socket.assigns.current_scope.user
-    {:ok, recording} = Recordings.start_recording(user.id, socket.assigns.gathering.id)
-    {:noreply, assign(socket, :recording, recording)}
+    case socket.assigns.current_scope && socket.assigns.current_scope.user do
+      nil ->
+        {:noreply, push_navigate(socket, to: ~p"/users/log-in")}
+
+      user ->
+        {:ok, recording} = Recordings.start_recording(user.id, socket.assigns.gathering.id)
+        {:noreply, assign(socket, :recording, recording)}
+    end
   end
 
   def handle_event("record_from_start", _params, socket) do
-    user = socket.assigns.current_scope.user
-    {:ok, recording} = Recordings.record_from_start(user.id, socket.assigns.gathering.id)
-    {:noreply, assign(socket, :recording, recording)}
+    case socket.assigns.current_scope && socket.assigns.current_scope.user do
+      nil ->
+        {:noreply, push_navigate(socket, to: ~p"/users/log-in")}
+
+      user ->
+        {:ok, recording} = Recordings.record_from_start(user.id, socket.assigns.gathering.id)
+        {:noreply, assign(socket, :recording, recording)}
+    end
   end
 
   def handle_event("stop_recording", _params, socket) do
-    {:ok, recording} = Recordings.stop_recording(socket.assigns.recording)
-    {:noreply, assign(socket, :recording, recording)}
+    if socket.assigns.recording do
+      {:ok, recording} = Recordings.stop_recording(socket.assigns.recording)
+      {:noreply, assign(socket, :recording, recording)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("send_chat", %{"body" => body}, socket) do
-    body = String.trim(body)
+    case socket.assigns.current_scope && socket.assigns.current_scope.user do
+      nil ->
+        {:noreply, push_navigate(socket, to: ~p"/users/log-in")}
 
-    if body != "" do
-      message = %{display_name: socket.assigns.viewer_profile.display_name, body: body}
+      _user ->
+        body = String.trim(body)
 
-      Phoenix.PubSub.broadcast(
-        Agora.PubSub,
-        "gathering:#{socket.assigns.gathering.id}",
-        {:chat_message, message}
-      )
+        if body != "" do
+          message = %{display_name: socket.assigns.viewer_profile.display_name, body: body}
+
+          Phoenix.PubSub.broadcast(
+            Agora.PubSub,
+            "gathering:#{socket.assigns.gathering.id}",
+            {:chat_message, message}
+          )
+        end
+
+        {:noreply, assign(socket, :chat_draft, "")}
     end
-
-    {:noreply, assign(socket, :chat_draft, "")}
   end
 
   # ── PubSub ────────────────────────────────────────────────────────────
@@ -139,101 +167,167 @@ defmodule AgoraWeb.GatheringLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen mesh-bg px-4 py-6">
-      <div class="flex items-center gap-4 mb-4 rounded-box glass depth-card p-4 rise-in">
-        <.avatar
-          avatar_url={@gathering.user.profile.avatar_url}
-          display_name={@gathering.user.profile.display_name}
-          size="size-12"
-        />
-        <div class="flex-1 min-w-0">
-          <h1 class="text-lg font-bold text-base-content truncate">{@gathering.title}</h1>
-          <p class="text-sm text-base-content/60 truncate">
-            by {@gathering.user.profile.display_name}
-          </p>
-        </div>
-        <p class="shrink-0 text-sm text-primary font-medium whitespace-nowrap">
-          <span class={@gathering.status == :live && "motion-safe:animate-pulse"}>🎙</span>
-          {@listener_count} listening
-        </p>
-      </div>
-
-      <div class="rounded-box glass depth-card p-4 mb-6 rise-in" style="animation-delay: 60ms">
-        <audio
-          :if={@gathering.status == :live}
-          id="player"
-          phx-hook="HlsPlayer"
-          phx-update="ignore"
-          data-manifest={@manifest_url}
-          controls
-          autoplay
-          class="w-full"
-        />
-        <p :if={@gathering.status != :live} class="text-base-content/50 text-center py-2">
-          This Gathering isn't live right now.
-        </p>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2 mb-6">
-        <%= if @recording do %>
-          <button
-            phx-click="stop_recording"
-            class="btn btn-error active:scale-95 transition-transform"
+    <Layouts.app flash={@flash} current_scope={@current_scope}>
+      <div class="mx-auto max-w-xl space-y-4 py-2 font-sans">
+        <!-- Top Back Navigation -->
+        <div class="flex items-center justify-between">
+          <.link
+            navigate={~p"/gatherings"}
+            class="flex items-center gap-2 text-xs font-semibold text-base-content/60 hover:text-base-content transition-colors"
           >
-            ⏹ Stop &amp; download
-          </button>
-          <span class="text-sm text-base-content/60">
-            Recording — {recording_elapsed_s(@recording, @head_sequence)}s
+            <.icon name="hero-arrow-left" class="size-4" /> Back to Live Rooms
+          </.link>
+          <span
+            :if={@gathering.status == :live}
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-extrabold tracking-wider uppercase"
+          >
+            <span class="size-2 rounded-full bg-primary motion-safe:animate-ping"></span>
+            Live Broadcast
           </span>
-        <% else %>
-          <button phx-click="record" class="btn btn-primary active:scale-95 transition-transform">
-            ⏺ Record from now
-          </button>
-          <button
-            phx-click="record_from_start"
-            class="btn btn-primary btn-outline active:scale-95 transition-transform"
-          >
-            ⏮ Record from the beginning
-          </button>
-        <% end %>
+        </div>
 
-        <%= if @download_url do %>
-          <a
-            href={@download_url}
-            class="btn btn-success active:scale-95 transition-transform"
-            download
-          >
-            ⬇ Download your recording
-          </a>
-        <% end %>
-      </div>
+        <!-- Host Banner Card -->
+        <div class="flex items-center gap-4 rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5">
+          <div class="relative shrink-0">
+            <.avatar
+              avatar_url={@gathering.user.profile.avatar_url}
+              display_name={@gathering.user.profile.display_name}
+              size="size-14"
+            />
+            <span
+              :if={@gathering.status == :live}
+              class="absolute -bottom-1 -right-1 flex items-center justify-center size-5 rounded-full bg-primary ring-2 ring-base-100 shadow-md"
+            >
+              <span class="size-2.5 rounded-full bg-white motion-safe:animate-ping"></span>
+            </span>
+          </div>
 
-      <div class="rounded-box glass depth-card p-4 rise-in" style="animation-delay: 120ms">
-        <h2 class="text-sm font-semibold text-base-content/70 mb-2">Chat</h2>
-        <div
-          id="chat-messages"
-          class="h-48 overflow-y-auto rounded-lg bg-black/20 p-3 space-y-1 mb-2 flex flex-col-reverse"
-        >
-          <div :for={message <- @chat_messages} class="text-sm">
-            <span class="font-semibold text-primary">{message.display_name}</span>
-            <span class="text-base-content/80">{message.body}</span>
+          <div class="flex-1 min-w-0">
+            <h1 class="font-display text-lg font-bold text-base-content truncate">
+              {@gathering.title}
+            </h1>
+            <p class="text-xs font-medium text-base-content/50 truncate mt-0.5">
+              Host: {@gathering.user.profile.display_name}
+            </p>
+          </div>
+
+          <div class="shrink-0 text-right">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20">
+              <.icon name="hero-user-group" class="size-4" />
+              <span>{@listener_count} listening</span>
+            </div>
           </div>
         </div>
-        <form phx-submit="send_chat" class="flex gap-2">
-          <input
-            type="text"
-            name="body"
-            value={@chat_draft}
-            placeholder="Say something…"
-            autocomplete="off"
-            class="input input-sm flex-1 bg-base-100/60"
-          />
-          <button type="submit" class="btn btn-sm btn-primary active:scale-95 transition-transform">
-            Send
-          </button>
-        </form>
+
+        <!-- Audio Player Stage -->
+        <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-4">
+          <div class="flex items-center justify-between text-xs font-bold text-base-content/70">
+            <span>Audio Stream Deck</span>
+            <span :if={@gathering.status == :live} class="text-emerald-400 flex items-center gap-1.5">
+              <span class="size-2 rounded-full bg-emerald-400 motion-safe:animate-pulse"></span>
+              Streaming Ready
+            </span>
+          </div>
+
+          <div class="relative rounded-xl well p-4 border border-base-content/[0.04] flex flex-col items-center justify-center min-h-24">
+            <audio
+              :if={@gathering.status == :live}
+              id="player"
+              phx-hook="HlsPlayer"
+              phx-update="ignore"
+              data-manifest={@manifest_url}
+              controls
+              autoplay
+              class="w-full h-10 accent-primary"
+            />
+            <p
+              :if={@gathering.status != :live}
+              class="text-sm font-medium text-base-content/40 py-4 text-center"
+            >
+              This Gathering isn't live right now.
+            </p>
+          </div>
+        </div>
+
+        <!-- Recording Actions Toolbar -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <%= if @recording do %>
+            <button
+              phx-click="stop_recording"
+              class="btn btn-error font-bold text-xs active:scale-95 transition-all shadow-lg"
+            >
+              <.icon name="hero-stop" class="size-4" /> Stop &amp; download
+            </button>
+            <span class="text-xs font-mono text-primary font-bold bg-primary/10 px-3 py-2 rounded-xl border border-primary/20">
+              Recording — {recording_elapsed_s(@recording, @head_sequence)}s
+            </span>
+          <% else %>
+            <button
+              phx-click="record"
+              class="btn btn-primary font-bold text-xs active:scale-95 transition-all shadow"
+            >
+              <.icon name="hero-[hero-record-option]" class="size-4" /> Record from now
+            </button>
+            <button
+              phx-click="record_from_start"
+              class="btn btn-outline font-bold text-xs border-base-content/20 hover:bg-base-content/10 active:scale-95 transition-all"
+            >
+              <.icon name="hero-arrow-uturn-left" class="size-4" /> Record from the beginning
+            </button>
+          <% end %>
+
+          <%= if @download_url do %>
+            <a
+              href={@download_url}
+              class="btn btn-success font-bold text-xs active:scale-95 transition-all shadow-lg"
+              download
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Download your recording
+            </a>
+          <% end %>
+        </div>
+
+        <!-- Ephemeral Live Chat Panel -->
+        <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-3">
+          <div class="flex items-center justify-between text-xs font-bold text-base-content/80 pb-1">
+            <span class="flex items-center gap-1.5">
+              <.icon name="hero-chat-bubble-left-right" class="size-4 text-primary" /> Live Chat
+            </span>
+            <span class="text-[10px] text-base-content/40">Ephemeral Room Chat</span>
+          </div>
+
+          <div
+            id="chat-messages"
+            class="h-52 overflow-y-auto rounded-xl well p-3.5 space-y-2 border border-base-content/[0.04] flex flex-col-reverse custom-scrollbar"
+          >
+            <div
+              :for={message <- @chat_messages}
+              class="text-xs leading-relaxed bg-base-content/[0.02] p-2 rounded-lg border border-base-content/[0.03]"
+            >
+              <span class="font-bold text-primary mr-1.5">{message.display_name}:</span>
+              <span class="text-base-content/90">{message.body}</span>
+            </div>
+          </div>
+
+          <form phx-submit="send_chat" class="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              name="body"
+              value={@chat_draft}
+              placeholder="Say something to the room..."
+              autocomplete="off"
+              class="input input-sm flex-1 well border-base-content/10 text-base-content placeholder:text-base-content/30 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-xs h-10"
+            />
+            <button
+              type="submit"
+              class="btn btn-sm btn-primary font-bold text-xs active:scale-95 transition-all h-10 px-4"
+            >
+              Send
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
+    </Layouts.app>
     """
   end
 end

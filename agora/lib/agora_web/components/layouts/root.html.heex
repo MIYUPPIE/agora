@@ -1,11 +1,32 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="agora">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="theme-color" content="#0b0b0e" />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <script>
+      // Set data-theme before first paint to avoid a flash of the wrong
+      // theme. Preference persists in localStorage; falls back to the
+      // OS-level color scheme on first visit.
+      (() => {
+        const stored = localStorage.getItem("theme");
+        const theme = stored || (window.matchMedia("(prefers-color-scheme: light)").matches ? "agora-light" : "agora");
+        document.documentElement.setAttribute("data-theme", theme);
+        document.querySelector('meta[name="theme-color"]').setAttribute(
+          "content",
+          theme === "agora-light" ? "#ffffff" : "#0b0b0e"
+        );
+      })();
+    </script>
     <.live_title default="Agora" suffix=" · The gathering place" phx-no-format>{assigns[:page_title]}</.live_title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
     <link rel="manifest" href={~p"/manifest.webmanifest"} />
     <link rel="icon" type="image/png" sizes="192x192" href={~p"/images/icons/icon-192.png"} />
@@ -19,7 +40,7 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
   </head>
-  <body class="bg-base-100">
+  <body class="bg-base-100 text-base-content antialiased selection:bg-primary selection:text-white font-sans">
     {@inner_content}
   </body>
 </html>

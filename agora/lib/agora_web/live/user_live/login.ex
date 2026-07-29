@@ -3,30 +3,30 @@ defmodule AgoraWeb.UserLive.Login do
 
   alias Agora.Accounts
 
-  @input_class "w-full input border-none bg-primary text-black/80 placeholder:text-black/50 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary-content/40"
+  @input_class "w-full input border border-base-content/10 bg-base-100/80 text-base-content placeholder:text-base-content/40 h-12 text-sm rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto w-full max-w-sm">
+      <div class="mx-auto w-full max-w-sm py-4">
         <.auth_logo />
 
         <div
           id="login-card"
           phx-hook="Tilt"
-          class="tilt glass depth-card rounded-box p-6 rise-in"
+          class="tilt glass depth-card rounded-2xl p-6 rise-in border border-base-content/10"
           style="animation-delay: 80ms"
         >
           <div
             :if={@current_scope}
-            class="mb-4 text-center text-sm text-base-content/70"
+            class="mb-4 text-center text-xs text-base-content/70"
           >
             Reauthenticate to perform sensitive actions on your account.
           </div>
 
-          <div :if={local_mail_adapter?()} class="alert alert-info mb-4 text-sm">
-            <.icon name="hero-information-circle" class="size-5 shrink-0" />
+          <div :if={local_mail_adapter?()} class="alert alert-info mb-4 text-xs">
+            <.icon name="hero-information-circle" class="size-4 shrink-0" />
             <span>
               Local mail adapter — view sent emails at <.link href="/dev/mailbox" class="underline">/dev/mailbox</.link>.
             </span>
@@ -46,7 +46,7 @@ defmodule AgoraWeb.UserLive.Login do
               readonly={!!@current_scope}
               field={f[:email]}
               type="email"
-              placeholder="Email"
+              placeholder="Email address"
               autocomplete="username"
               spellcheck="false"
               required
@@ -63,7 +63,7 @@ defmodule AgoraWeb.UserLive.Login do
               class={@input_class}
             />
             <input type="hidden" name={@form[:remember_me].name} value="true" />
-            <.button class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform">
+            <.button class="btn btn-primary w-full h-12 text-sm font-bold text-white depth-glow active:scale-[0.97] transition-all">
               Login
             </.button>
           </.form>
@@ -79,23 +79,23 @@ defmodule AgoraWeb.UserLive.Login do
             <.input
               field={f[:email]}
               type="email"
-              placeholder="Email"
+              placeholder="Email address"
               autocomplete="username"
               spellcheck="false"
               required
               class={@input_class}
               phx-mounted={JS.focus()}
             />
-            <.button class="btn btn-neutral w-full h-12 text-base active:scale-[0.97] transition-transform">
-              Email me a login link
+            <.button class="btn btn-primary w-full h-12 text-sm font-bold text-white depth-glow active:scale-[0.97] transition-all">
+              Email Me a Login Link
             </.button>
           </.form>
 
-          <div class="mt-6 flex flex-col items-center gap-2 text-sm">
+          <div class="mt-6 flex flex-col items-center gap-2.5 text-xs">
             <button
               type="button"
               phx-click="toggle_mode"
-              class="text-base-content/60 hover:text-base-content underline-offset-4 hover:underline transition-colors"
+              class="text-base-content/60 hover:text-primary underline-offset-4 hover:underline transition-colors"
             >
               <%= if @mode == :password do %>
                 Log in with an emailed link instead
@@ -107,9 +107,9 @@ defmodule AgoraWeb.UserLive.Login do
             <.link
               :if={!@current_scope}
               navigate={~p"/users/register"}
-              class="font-semibold text-base-content hover:underline"
+              class="font-bold text-base-content hover:text-primary transition-colors"
             >
-              Sign Up
+              Don't have an account? Sign Up
             </.link>
           </div>
         </div>

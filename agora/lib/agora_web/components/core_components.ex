@@ -106,7 +106,7 @@ defmodule AgoraWeb.CoreComponents do
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{"primary" => "btn-primary text-white", nil => "btn-primary text-white"}
 
     assigns =
       assign_new(assigns, :class, fn ->
@@ -297,7 +297,7 @@ defmodule AgoraWeb.CoreComponents do
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
             @class ||
-              "w-full input bg-base-200/60 border-white/10 focus:border-primary/60 transition-colors",
+              "w-full input bg-base-200/60 border-base-content/10 focus:border-primary/60 transition-colors",
             @errors != [] && (@error_class || "input-error")
           ]}
           {@rest}
@@ -319,16 +319,59 @@ defmodule AgoraWeb.CoreComponents do
   end
 
   @doc """
+  Renders the responsive Agora logo + wordmark.
+
+  ## Options
+  - `size`: size class for the mark container (e.g. "size-8 sm:size-9" or "size-16 sm:size-20")
+  - `text_size`: size class for text (e.g. "text-base sm:text-lg")
+  - `show_text`: boolean (default true)
+  - `direction`: :horizontal (default) or :vertical
+  """
+  attr :size, :string, default: "size-8 sm:size-9"
+  attr :text_size, :string, default: "text-base sm:text-lg"
+  attr :show_text, :boolean, default: true
+  attr :direction, :atom, default: :horizontal
+  attr :class, :string, default: nil
+
+  def logo(assigns) do
+    ~H"""
+    <div class={[
+      "flex items-center shrink-0 group transition-all",
+      @direction == :vertical && "flex-col gap-2 sm:gap-3 text-center",
+      @direction == :horizontal && "gap-2 sm:gap-2.5",
+      @class
+    ]}>
+      <div class={[
+        "relative flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-rose-600 p-0.5 shadow-md group-hover:scale-105 transition-transform duration-200 shrink-0",
+        @size
+      ]}>
+        <img src={~p"/images/agora-mark.png"} class="size-full object-contain rounded-lg" alt="Agora" />
+      </div>
+      <span
+        :if={@show_text}
+        class={[
+          "font-display font-bold tracking-wider text-base-content group-hover:text-primary transition-colors select-none shrink-0",
+          @text_size
+        ]}
+      >
+        AGORA
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
   Renders the Agora mark + wordmark, centered — used above every auth form.
   """
   def auth_logo(assigns) do
     ~H"""
-    <div class="flex flex-col items-center gap-3 mb-8 rise-in">
-      <div class="rounded-full p-1 depth-glow">
-        <img src={~p"/images/agora-mark.png"} width="88" alt="Agora" class="rounded-full" />
-      </div>
-      <span class="text-3xl font-semibold tracking-wide text-base-content">AGORA</span>
-    </div>
+    <.link navigate={~p"/"} class="inline-block mb-6 sm:mb-8 rise-in max-w-full">
+      <.logo
+        size="size-14 sm:size-20"
+        text_size="text-2xl sm:text-3xl"
+        direction={:vertical}
+      />
+    </.link>
     """
   end
 
@@ -470,6 +513,104 @@ defmodule AgoraWeb.CoreComponents do
     ~H"""
     <span class={[@name, @class]} />
     """
+  end
+
+  @doc """
+  Renders a modal as a dismissible overlay (backdrop click, Escape, or the
+  close button all trigger `@on_cancel`).
+
+  ## Examples
+
+      <.modal id="confirm-modal">
+        This is a modal.
+      </.modal>
+
+  JS commands may be passed to the `:on_cancel` to configure
+  the closing/cancel event, for example:
+
+      <.modal id="confirm" on_cancel={JS.navigate(~p"/posts")}>
+        This is another modal.
+      </.modal>
+
+  """
+  attr :id, :string, required: true
+  attr :show, :boolean, default: false
+  attr :on_cancel, JS, default: %JS{}
+  slot :inner_block, required: true
+
+  def modal(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      phx-mounted={@show && show_modal(@id)}
+      phx-remove={hide_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      class="relative z-50 hidden"
+    >
+      <div
+        id={"#{@id}-bg"}
+        class="bg-black/70 backdrop-blur-sm fixed inset-0 transition-opacity"
+        aria-hidden="true"
+      />
+      <div
+        class="fixed inset-0 overflow-y-auto"
+        aria-labelledby={"#{@id}-title"}
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+      >
+        <div class="flex min-h-full items-end sm:items-center justify-center">
+          <div class="w-full max-w-lg p-0 sm:p-6">
+            <.focus_wrap
+              id={"#{@id}-container"}
+              phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+              phx-key="escape"
+              phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+              class="relative hidden rounded-t-3xl sm:rounded-3xl glass-panel depth-card p-5 sm:p-6 border border-base-content/10 transition"
+            >
+              <div class="absolute top-4 right-4">
+                <button
+                  phx-click={JS.exec("data-cancel", to: "##{@id}")}
+                  type="button"
+                  class="-m-2.5 flex-none p-2.5 text-base-content/40 hover:text-base-content transition-colors"
+                  aria-label="close"
+                >
+                  <.icon name="hero-x-mark" class="size-5" />
+                </button>
+              </div>
+              <div id={"#{@id}-content"}>
+                {render_slot(@inner_block)}
+              </div>
+            </.focus_wrap>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  def show_modal(js \\ %JS{}, id) when is_binary(id) do
+    js
+    |> JS.show(to: "##{id}")
+    |> JS.show(
+      to: "##{id}-bg",
+      transition: {"transition-all transform ease-out duration-300", "opacity-0", "opacity-100"}
+    )
+    |> show("##{id}-container")
+    |> JS.add_class("overflow-hidden", to: "body")
+    |> JS.focus_first(to: "##{id}-content")
+  end
+
+  def hide_modal(js \\ %JS{}, id) do
+    js
+    |> JS.hide(
+      to: "##{id}-bg",
+      transition: {"transition-all transform ease-in duration-200", "opacity-100", "opacity-0"}
+    )
+    |> hide("##{id}-container")
+    |> JS.hide(to: "##{id}", transition: {"block", "block", "hidden"})
+    |> JS.remove_class("overflow-hidden", to: "body")
+    |> JS.pop_focus()
   end
 
   ## JS Commands
