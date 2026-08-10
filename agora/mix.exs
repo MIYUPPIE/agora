@@ -80,6 +80,7 @@ defmodule Agora.MixProject do
       {:membrane_rtmp_plugin, "~> 0.27"},
       {:membrane_http_adaptive_stream_plugin, "~> 0.18"},
       {:membrane_aac_plugin, "~> 0.19"},
+      {:membrane_raw_audio_format, "~> 0.12"},
       {:oban, "~> 2.18"},
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},

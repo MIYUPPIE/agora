@@ -19,11 +19,12 @@ defmodule AgoraWeb.GatheringLive.New do
   use AgoraWeb, :live_view
 
   alias Agora.Gatherings
+  alias Agora.Media.AudioEffects
   alias AgoraWeb.BroadcastChannel
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, gathering: nil, broadcast_token: nil, live?: false)}
+    {:ok, assign(socket, gathering: nil, broadcast_token: nil, live?: false, effect_params: nil)}
   end
 
   @impl true
@@ -37,10 +38,21 @@ defmodule AgoraWeb.GatheringLive.New do
         {:noreply,
          socket
          |> assign(:gathering, gathering)
-         |> assign(:broadcast_token, BroadcastChannel.broadcast_token(gathering, user))}
+         |> assign(:broadcast_token, BroadcastChannel.broadcast_token(gathering, user))
+         |> assign(:effect_params, AudioEffects.get_params(user.id))}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Give your Gathering a title.")}
+    end
+  end
+
+  def handle_event("update_effect", changes, socket) do
+    user = socket.assigns.current_scope.user
+    gathering = socket.assigns.gathering
+
+    case AudioEffects.update_params(gathering.id, user.id, changes) do
+      {:ok, params} -> {:noreply, assign(socket, :effect_params, params)}
+      {:error, _changeset} -> {:noreply, socket}
     end
   end
 
@@ -202,6 +214,8 @@ defmodule AgoraWeb.GatheringLive.New do
               </div>
             </div>
           </div>
+
+          <.effects_panel params={@effect_params} />
 
           <!-- Live Status Banner -->
           <div

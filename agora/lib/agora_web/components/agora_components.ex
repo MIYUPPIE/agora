@@ -636,4 +636,443 @@ defmodule AgoraWeb.AgoraComponents do
     </.modal>
     """
   end
+
+  @doc """
+  The broadcaster's live audio effects control panel — gain, noise gate,
+  4-band EQ, compressor, reverb, and limiter, all adjustable while a
+  Gathering is live. A single form with `phx-change="update_effect"`;
+  every control's `name` is a bracketed path (`compressor[ratio]`,
+  `noise_gate[enabled]`, ...) so Phoenix's own form-param parsing
+  reassembles the exact nested shape `Agora.Media.Audio.Params` expects,
+  and `Agora.Media.Audio.Params.merge/2` (already exercised against
+  string-keyed, partial, and even hostile input in
+  `params_test.exs`) does the rest — no bespoke parsing needed here.
+  """
+  attr :params, :map, required: true
+
+  def effects_panel(assigns) do
+    ~H"""
+    <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-base-content/[0.06] pb-3">
+        <div>
+          <h3 class="font-display text-base font-bold text-base-content">Live Audio Studio</h3>
+          <p class="text-xs text-base-content/50">
+            Gain, EQ, compression, reverb &amp; limiting — adjustable while you're live
+          </p>
+        </div>
+        <.icon name="hero-adjustments-horizontal" class="size-5 text-primary" />
+      </div>
+
+      <form id="effects-form" phx-change="update_effect" class="space-y-3">
+        <.range_row
+          label="Input Gain"
+          name="input_gain_db"
+          value={@params.input_gain_db}
+          min={-24.0}
+          max={24.0}
+          step={0.5}
+          unit=" dB"
+        />
+
+        <.effect_section
+          title="Noise Gate"
+          icon="hero-speaker-x-mark"
+          enabled_name="noise_gate[enabled]"
+          enabled={@params.noise_gate.enabled}
+        >
+          <.range_row
+            label="Threshold"
+            name="noise_gate[threshold_db]"
+            value={@params.noise_gate.threshold_db}
+            min={-80.0}
+            max={0.0}
+            step={1.0}
+            unit=" dB"
+          />
+          <.range_row
+            label="Attack"
+            name="noise_gate[attack_ms]"
+            value={@params.noise_gate.attack_ms}
+            min={0.0}
+            max={200.0}
+            step={0.5}
+            unit=" ms"
+          />
+          <.range_row
+            label="Release"
+            name="noise_gate[release_ms]"
+            value={@params.noise_gate.release_ms}
+            min={5.0}
+            max={2000.0}
+            step={5.0}
+            unit=" ms"
+          />
+          <.range_row
+            label="Hold"
+            name="noise_gate[hold_ms]"
+            value={@params.noise_gate.hold_ms}
+            min={0.0}
+            max={1000.0}
+            step={5.0}
+            unit=" ms"
+          />
+          <.range_row
+            label="Floor"
+            name="noise_gate[range_db]"
+            value={@params.noise_gate.range_db}
+            min={-90.0}
+            max={0.0}
+            step={1.0}
+            unit=" dB"
+          />
+        </.effect_section>
+
+        <div class="rounded-xl bg-base-content/[0.03] border border-base-content/[0.05] p-4 space-y-3">
+          <div class="flex items-center gap-2">
+            <.icon name="hero-adjustments-vertical" class="size-4 text-primary" />
+            <span class="text-xs font-bold text-base-content/90">Equalizer</span>
+          </div>
+
+          <.eq_band
+            title="High-pass (rumble cut)"
+            enabled_name="eq[highpass][enabled]"
+            enabled={@params.eq.highpass.enabled}
+          >
+            <.range_row
+              label="Frequency"
+              name="eq[highpass][freq]"
+              value={@params.eq.highpass.freq}
+              min={20.0}
+              max={500.0}
+              step={5.0}
+              unit=" Hz"
+            />
+            <.range_row
+              label="Q"
+              name="eq[highpass][q]"
+              value={@params.eq.highpass.q}
+              min={0.3}
+              max={5.0}
+              step={0.05}
+              unit=""
+            />
+          </.eq_band>
+
+          <.eq_band
+            title="Low Shelf"
+            enabled_name="eq[low_shelf][enabled]"
+            enabled={@params.eq.low_shelf.enabled}
+          >
+            <.range_row
+              label="Frequency"
+              name="eq[low_shelf][freq]"
+              value={@params.eq.low_shelf.freq}
+              min={20.0}
+              max={1000.0}
+              step={10.0}
+              unit=" Hz"
+            />
+            <.range_row
+              label="Gain"
+              name="eq[low_shelf][gain_db]"
+              value={@params.eq.low_shelf.gain_db}
+              min={-15.0}
+              max={15.0}
+              step={0.5}
+              unit=" dB"
+            />
+          </.eq_band>
+
+          <.eq_band
+            title="Mid Peak"
+            enabled_name="eq[mid_peak][enabled]"
+            enabled={@params.eq.mid_peak.enabled}
+          >
+            <.range_row
+              label="Frequency"
+              name="eq[mid_peak][freq]"
+              value={@params.eq.mid_peak.freq}
+              min={150.0}
+              max={8000.0}
+              step={10.0}
+              unit=" Hz"
+            />
+            <.range_row
+              label="Gain"
+              name="eq[mid_peak][gain_db]"
+              value={@params.eq.mid_peak.gain_db}
+              min={-15.0}
+              max={15.0}
+              step={0.5}
+              unit=" dB"
+            />
+            <.range_row
+              label="Q"
+              name="eq[mid_peak][q]"
+              value={@params.eq.mid_peak.q}
+              min={0.3}
+              max={8.0}
+              step={0.1}
+              unit=""
+            />
+          </.eq_band>
+
+          <.eq_band
+            title="High Shelf (presence/air)"
+            enabled_name="eq[high_shelf][enabled]"
+            enabled={@params.eq.high_shelf.enabled}
+            last?={true}
+          >
+            <.range_row
+              label="Frequency"
+              name="eq[high_shelf][freq]"
+              value={@params.eq.high_shelf.freq}
+              min={1500.0}
+              max={18_000.0}
+              step={100.0}
+              unit=" Hz"
+            />
+            <.range_row
+              label="Gain"
+              name="eq[high_shelf][gain_db]"
+              value={@params.eq.high_shelf.gain_db}
+              min={-15.0}
+              max={15.0}
+              step={0.5}
+              unit=" dB"
+            />
+          </.eq_band>
+        </div>
+
+        <.effect_section
+          title="Compressor"
+          icon="hero-arrows-pointing-in"
+          enabled_name="compressor[enabled]"
+          enabled={@params.compressor.enabled}
+        >
+          <.range_row
+            label="Threshold"
+            name="compressor[threshold_db]"
+            value={@params.compressor.threshold_db}
+            min={-60.0}
+            max={0.0}
+            step={1.0}
+            unit=" dB"
+          />
+          <.range_row
+            label="Ratio"
+            name="compressor[ratio]"
+            value={@params.compressor.ratio}
+            min={1.0}
+            max={20.0}
+            step={0.5}
+            unit=":1"
+          />
+          <.range_row
+            label="Attack"
+            name="compressor[attack_ms]"
+            value={@params.compressor.attack_ms}
+            min={0.0}
+            max={200.0}
+            step={0.5}
+            unit=" ms"
+          />
+          <.range_row
+            label="Release"
+            name="compressor[release_ms]"
+            value={@params.compressor.release_ms}
+            min={5.0}
+            max={2000.0}
+            step={5.0}
+            unit=" ms"
+          />
+          <.range_row
+            label="Knee"
+            name="compressor[knee_db]"
+            value={@params.compressor.knee_db}
+            min={0.0}
+            max={24.0}
+            step={0.5}
+            unit=" dB"
+          />
+          <.range_row
+            label="Makeup Gain"
+            name="compressor[makeup_gain_db]"
+            value={@params.compressor.makeup_gain_db}
+            min={0.0}
+            max={24.0}
+            step={0.5}
+            unit=" dB"
+          />
+        </.effect_section>
+
+        <.effect_section
+          title="Reverb"
+          icon="hero-speaker-wave"
+          enabled_name="reverb[enabled]"
+          enabled={@params.reverb.enabled}
+        >
+          <.range_row
+            label="Mix"
+            name="reverb[mix]"
+            value={@params.reverb.mix}
+            min={0.0}
+            max={0.6}
+            step={0.01}
+            unit=""
+          />
+          <.range_row
+            label="Room Size"
+            name="reverb[room_size]"
+            value={@params.reverb.room_size}
+            min={0.0}
+            max={1.0}
+            step={0.01}
+            unit=""
+          />
+          <.range_row
+            label="Damping"
+            name="reverb[damping]"
+            value={@params.reverb.damping}
+            min={0.0}
+            max={1.0}
+            step={0.01}
+            unit=""
+          />
+        </.effect_section>
+
+        <.effect_section
+          title="Limiter"
+          icon="hero-shield-check"
+          enabled_name="limiter[enabled]"
+          enabled={@params.limiter.enabled}
+        >
+          <.range_row
+            label="Ceiling"
+            name="limiter[ceiling_db]"
+            value={@params.limiter.ceiling_db}
+            min={-12.0}
+            max={0.0}
+            step={0.5}
+            unit=" dB"
+          />
+          <.range_row
+            label="Attack"
+            name="limiter[attack_ms]"
+            value={@params.limiter.attack_ms}
+            min={0.0}
+            max={50.0}
+            step={0.5}
+            unit=" ms"
+          />
+          <.range_row
+            label="Release"
+            name="limiter[release_ms]"
+            value={@params.limiter.release_ms}
+            min={5.0}
+            max={1000.0}
+            step={5.0}
+            unit=" ms"
+          />
+        </.effect_section>
+      </form>
+    </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :name, :string, required: true
+  attr :value, :float, required: true
+  attr :min, :float, required: true
+  attr :max, :float, required: true
+  attr :step, :float, default: 0.1
+  attr :unit, :string, default: ""
+
+  defp range_row(assigns) do
+    ~H"""
+    <div class="space-y-1">
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="font-semibold text-base-content/70">{@label}</span>
+        <span class="font-mono text-primary">{format_range_value(@value)}{@unit}</span>
+      </div>
+      <input
+        type="range"
+        name={@name}
+        value={@value}
+        min={@min}
+        max={@max}
+        step={@step}
+        phx-debounce="150"
+        class="range range-primary range-xs w-full"
+      />
+    </div>
+    """
+  end
+
+  defp format_range_value(value) when is_float(value) do
+    :erlang.float_to_binary(value, decimals: 2)
+  end
+
+  defp format_range_value(value), do: to_string(value)
+
+  attr :title, :string, required: true
+  attr :icon, :string, required: true
+  attr :enabled_name, :string, default: nil
+  attr :enabled, :boolean, default: true
+  slot :inner_block, required: true
+
+  defp effect_section(assigns) do
+    ~H"""
+    <div class="rounded-xl bg-base-content/[0.03] border border-base-content/[0.05] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <.icon name={@icon} class="size-4 text-primary" />
+          <span class="text-xs font-bold text-base-content/90">{@title}</span>
+        </div>
+        <.enabled_toggle :if={@enabled_name} name={@enabled_name} enabled={@enabled} />
+      </div>
+      <div class={["space-y-3", !@enabled && "opacity-40 pointer-events-none"]}>
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  attr :title, :string, required: true
+  attr :enabled_name, :string, required: true
+  attr :enabled, :boolean, required: true
+  attr :last?, :boolean, default: false
+  slot :inner_block, required: true
+
+  defp eq_band(assigns) do
+    ~H"""
+    <div class={["space-y-2 pb-3", !@last? && "border-b border-base-content/[0.05]"]}>
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-base-content/50">{@title}</span>
+        <.enabled_toggle name={@enabled_name} enabled={@enabled} />
+      </div>
+      <div class={["space-y-2", !@enabled && "opacity-40 pointer-events-none"]}>
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  attr :name, :string, required: true
+  attr :enabled, :boolean, required: true
+
+  defp enabled_toggle(assigns) do
+    ~H"""
+    <label class="inline-flex items-center cursor-pointer">
+      <input type="hidden" name={@name} value="false" />
+      <input
+        type="checkbox"
+        name={@name}
+        value="true"
+        checked={@enabled}
+        class="toggle toggle-primary toggle-xs"
+      />
+    </label>
+    """
+  end
 end

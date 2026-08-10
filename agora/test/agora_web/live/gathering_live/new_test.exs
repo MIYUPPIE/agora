@@ -6,6 +6,7 @@ defmodule AgoraWeb.GatheringLive.NewTest do
   import Agora.AccountsFixtures
 
   alias Agora.Gatherings
+  alias Agora.Media.AudioEffects
   alias AgoraWeb.{BroadcastChannel, UserSocket}
 
   test "creating a gathering shows the ingest URL and a waiting state", %{conn: conn} do
@@ -98,6 +99,107 @@ defmodule AgoraWeb.GatheringLive.NewTest do
     html = render(lv)
     refute html =~ "You&#39;re live"
     assert html =~ "Waiting for your broadcast to start"
+  end
+
+  describe "the live audio effects panel" do
+    test "renders once a Gathering exists, with default values", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert html =~ "Live Audio Studio"
+      assert html =~ ~s(id="effects-form")
+      assert html =~ "Noise Gate"
+      assert html =~ "Equalizer"
+      assert html =~ "Compressor"
+      assert html =~ "Reverb"
+      assert html =~ "Limiter"
+      # Default input gain is 0.0dB — rendered via format_range_value/1.
+      assert html =~ "0.00 dB"
+    end
+
+    test "moving a slider updates the rendered value and persists to the user's preset", %{
+      conn: conn
+    } do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      html =
+        lv
+        |> form("#effects-form", %{"input_gain_db" => "6.0"})
+        |> render_change()
+
+      assert html =~ "6.00 dB"
+      assert AudioEffects.get_params(user.id).input_gain_db == 6.0
+    end
+
+    # Phoenix.LiveViewTest's form/3 derives checkbox "checked"-ness from
+    # the rendered DOM, not from an override map (checked and value are
+    # separate DOM concerns) — so exercising a checkbox flip needs
+    # render_change/3 sending the raw payload directly, the same shape a
+    # real browser would produce for the hidden-false/checkbox-true pair
+    # rendered by `enabled_toggle/1`, rather than form/3 + render_change/1.
+    test "checking a section's enabled toggle turns it on and persists the change", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      refute AudioEffects.get_params(user.id).reverb.enabled
+
+      render_change(lv, "update_effect", %{"reverb" => %{"enabled" => "true"}})
+
+      assert AudioEffects.get_params(user.id).reverb.enabled == true
+    end
+
+    test "unchecking a section's enabled toggle (submitting only the hidden false companion) turns it off",
+         %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert AudioEffects.get_params(user.id).compressor.enabled
+
+      render_change(lv, "update_effect", %{"compressor" => %{"enabled" => "false"}})
+
+      refute AudioEffects.get_params(user.id).compressor.enabled
+    end
+
+    test "a slider change alongside other fields leaves sibling values untouched", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      html =
+        lv
+        |> form("#effects-form", %{"compressor" => %{"ratio" => "8.0"}})
+        |> render_change()
+
+      assert html =~ "8.00:1"
+      params = AudioEffects.get_params(user.id)
+      assert params.compressor.ratio == 8.0
+
+      assert params.compressor.threshold_db ==
+               Agora.Media.Audio.Params.default().compressor.threshold_db
+    end
+
+    test "out-of-range values submitted directly are clamped before being applied", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      lv
+      |> form("#effects-form", %{"limiter" => %{"ceiling_db" => "50.0"}})
+      |> render_change()
+
+      assert AudioEffects.get_params(user.id).limiter.ceiling_db == 0.0
+    end
   end
 
   defp extract_stream_key(html) do

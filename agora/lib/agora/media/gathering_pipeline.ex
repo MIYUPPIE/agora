@@ -3,7 +3,20 @@ defmodule Agora.Media.GatheringPipeline do
   One supervised Membrane pipeline per live Gathering.
 
   Flow:  RTMP ingest (OBS / mobile encoder) -> demux -> AAC audio
+         -> decode to PCM -> live effects chain -> re-encode to AAC
          -> HLS packager -> Agora.Media.SegmentStorage (disk + DB + PubSub)
+
+  The decode/effects/encode detour is `Agora.Media.Audio.AACDecoder` ->
+  `Agora.Media.Audio.EffectsFilter` -> `Agora.Media.Audio.AACEncoder` —
+  gain, noise gate, EQ, compressor, reverb, and limiter, applied live and
+  controllable in real time via `handle_call/3` below, from
+  `Agora.Media.AudioEffects`. It runs for every broadcaster regardless of
+  how they connect (OBS/RTMP directly, or the browser-mic bridge via
+  `Agora.Media.BrowserBroadcastBridge`, which itself just loops back into
+  this same RTMP ingest) — see `Agora.Media.Audio.EffectsChain`'s
+  moduledoc for the DSP chain itself, and `Agora.Media.Audio.FFmpegPort`
+  for why AAC<->PCM conversion goes through ffmpeg rather than a native
+  Membrane codec plugin.
 
   Design decisions:
 
@@ -23,6 +36,8 @@ defmodule Agora.Media.GatheringPipeline do
 
   use Membrane.Pipeline
 
+  alias Agora.Media.Audio.{AACDecoder, AACEncoder, EffectsFilter}
+  alias Agora.Media.AudioEffects
   alias Membrane.HTTPAdaptiveStream.SinkBin
   alias Membrane.Time
 
@@ -53,6 +68,9 @@ defmodule Agora.Media.GatheringPipeline do
     output_dir = Agora.Media.segment_dir(gathering_id)
     File.mkdir_p!(output_dir)
 
+    %{user_id: user_id} = Agora.Gatherings.get!(gathering_id)
+    initial_effect_params = AudioEffects.get_params(user_id)
+
     spec = [
       # 1. RTMP ingest. `client_ref` comes from Membrane.RTMPServer's
       #    handle_new_client callback (see Agora.Media.RTMPEndpoint).
@@ -70,11 +88,19 @@ defmodule Agora.Media.GatheringPipeline do
         }
       }),
 
-      # 3. Wire audio only: parse AAC out of the RTMP/FLV container and
-      #    hand it to the packager.
+      # 3. Audio only: parse AAC out of the RTMP/FLV container, decode to
+      #    raw PCM, run the live effects chain, re-encode to AAC, then
+      #    re-parse the encoder's raw ADTS byte stream back into properly
+      #    framed AAC access units (exactly the framing step the original
+      #    single-parser pipeline did directly on the RTMP source) before
+      #    handing off to the HLS packager.
       get_child(:source)
       |> via_out(:audio)
-      |> child(:aac_parser, %Membrane.AAC.Parser{
+      |> child(:aac_parser_in, %Membrane.AAC.Parser{out_encapsulation: :ADTS})
+      |> child(:aac_decoder, AACDecoder)
+      |> child(:effects, %EffectsFilter{initial_params: initial_effect_params})
+      |> child(:aac_encoder, AACEncoder)
+      |> child(:aac_parser_out, %Membrane.AAC.Parser{
         out_encapsulation: :none,
         output_config: :esds
       })
@@ -101,6 +127,16 @@ defmodule Agora.Media.GatheringPipeline do
     |> Oban.insert()
 
     {[spec: spec], state}
+  end
+
+  # Live effects control — called synchronously by Agora.Media.AudioEffects
+  # via Membrane.Pipeline.call/2 whenever a broadcaster moves a slider in
+  # the effects panel while this Gathering is live. Forwarded to the
+  # :effects child as a parent notification; see
+  # Agora.Media.Audio.EffectsFilter.handle_parent_notification/3.
+  @impl true
+  def handle_call({:update_effect_params, changes}, _ctx, state) do
+    {[notify_child: {:effects, {:update_params, changes}}, reply: :ok], state}
   end
 
   # Broadcaster disconnected / ended the Gathering.
