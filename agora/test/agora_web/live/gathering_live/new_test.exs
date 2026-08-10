@@ -202,6 +202,71 @@ defmodule AgoraWeb.GatheringLive.NewTest do
     end
   end
 
+  describe "live chat on the broadcaster's own Studio page" do
+    test "renders once a Gathering exists", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert html =~ "Live Chat"
+      assert html =~ ~s(id="chat-messages")
+    end
+
+    test "a message the broadcaster sends is visible on their own page and clears the input", %{
+      conn: conn
+    } do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      lv
+      |> form("form[phx-submit=send_chat]", %{"body" => "Welcome everyone!"})
+      |> render_submit()
+
+      html = render(lv)
+      assert html =~ "Welcome everyone!"
+      refute html =~ ~s(value="Welcome everyone!")
+    end
+
+    test "blank messages are not broadcast", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      lv |> form("form[phx-submit=send_chat]", %{"body" => "   "}) |> render_submit()
+      refute has_element?(lv, "#chat-messages div")
+    end
+
+    # The whole point of this feature: the broadcaster stays on
+    # /gatherings/new for the entire broadcast (see moduledoc) and
+    # previously had no way to see the room's chat at all.
+    test "a listener's message on the show page reaches the broadcaster's Studio page", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, studio_lv, _html} = live(log_in_user(conn, broadcaster), ~p"/gatherings/new")
+
+      studio_lv
+      |> form("form", gathering: %{title: "Sunday service"})
+      |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+
+      {:ok, listener_lv, _html} =
+        live(log_in_user(build_conn(), listener), ~p"/gatherings/#{gathering.id}")
+
+      listener_lv
+      |> form("form[phx-submit=send_chat]", %{"body" => "Can you hear us?"})
+      |> render_submit()
+
+      assert render(studio_lv) =~ "Can you hear us?"
+    end
+  end
+
   defp extract_stream_key(html) do
     [_, key] = Regex.run(~r{rtmp://[^/]+/live/([^\s<]+)}, html)
     key

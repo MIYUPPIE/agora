@@ -287,45 +287,7 @@ defmodule AgoraWeb.GatheringLive.Show do
           <% end %>
         </div>
 
-        <!-- Ephemeral Live Chat Panel -->
-        <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-3">
-          <div class="flex items-center justify-between text-xs font-bold text-base-content/80 pb-1">
-            <span class="flex items-center gap-1.5">
-              <.icon name="hero-chat-bubble-left-right" class="size-4 text-primary" /> Live Chat
-            </span>
-            <span class="text-[10px] text-base-content/40">Ephemeral Room Chat</span>
-          </div>
-
-          <div
-            id="chat-messages"
-            class="h-52 overflow-y-auto rounded-xl well p-3.5 space-y-2 border border-base-content/[0.04] flex flex-col-reverse custom-scrollbar"
-          >
-            <div
-              :for={message <- @chat_messages}
-              class="text-xs leading-relaxed bg-base-content/[0.02] p-2 rounded-lg border border-base-content/[0.03]"
-            >
-              <span class="font-bold text-primary mr-1.5">{message.display_name}:</span>
-              <span class="text-base-content/90">{message.body}</span>
-            </div>
-          </div>
-
-          <form phx-submit="send_chat" class="flex items-center gap-2 pt-1">
-            <input
-              type="text"
-              name="body"
-              value={@chat_draft}
-              placeholder="Say something to the room..."
-              autocomplete="off"
-              class="input input-sm flex-1 well border-base-content/10 text-base-content placeholder:text-base-content/30 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-xs h-10"
-            />
-            <button
-              type="submit"
-              class="btn btn-sm btn-primary font-bold text-xs active:scale-95 transition-all h-10 px-4"
-            >
-              Send
-            </button>
-          </form>
-        </div>
+        <.chat_panel messages={@chat_messages} draft={@chat_draft} />
       </div>
     </Layouts.app>
     """

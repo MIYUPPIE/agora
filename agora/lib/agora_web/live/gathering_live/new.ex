@@ -18,13 +18,26 @@ defmodule AgoraWeb.GatheringLive.New do
 
   use AgoraWeb, :live_view
 
-  alias Agora.Gatherings
+  alias Agora.{Gatherings, Profiles}
   alias Agora.Media.AudioEffects
   alias AgoraWeb.BroadcastChannel
 
+  @max_chat_messages 50
+
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, gathering: nil, broadcast_token: nil, live?: false, effect_params: nil)}
+    broadcaster_profile = Profiles.get_or_create!(socket.assigns.current_scope.user)
+
+    {:ok,
+     assign(socket,
+       gathering: nil,
+       broadcast_token: nil,
+       live?: false,
+       effect_params: nil,
+       broadcaster_profile: broadcaster_profile,
+       chat_messages: [],
+       chat_draft: ""
+     )}
   end
 
   @impl true
@@ -56,7 +69,28 @@ defmodule AgoraWeb.GatheringLive.New do
     end
   end
 
+  def handle_event("send_chat", %{"body" => body}, socket) do
+    body = String.trim(body)
+
+    if body != "" and socket.assigns.gathering do
+      message = %{display_name: socket.assigns.broadcaster_profile.display_name, body: body}
+
+      Phoenix.PubSub.broadcast(
+        Agora.PubSub,
+        "gathering:#{socket.assigns.gathering.id}",
+        {:chat_message, message}
+      )
+    end
+
+    {:noreply, assign(socket, :chat_draft, "")}
+  end
+
   @impl true
+  def handle_info({:chat_message, message}, socket) do
+    messages = [message | socket.assigns.chat_messages] |> Enum.take(@max_chat_messages)
+    {:noreply, assign(socket, :chat_messages, messages)}
+  end
+
   def handle_info({:gathering_live, id}, socket) do
     if socket.assigns.gathering && socket.assigns.gathering.id == id do
       {:noreply, assign(socket, :live?, true)}
@@ -242,6 +276,8 @@ defmodule AgoraWeb.GatheringLive.New do
               <.icon name="hero-arrow-top-right-on-square" class="size-4" /> View as a listener
             </a>
           </div>
+
+          <.chat_panel messages={@chat_messages} draft={@chat_draft} />
         </div>
       </div>
     </Layouts.app>
