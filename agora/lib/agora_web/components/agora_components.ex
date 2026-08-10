@@ -16,10 +16,26 @@ defmodule AgoraWeb.AgoraComponents do
 
   attr :count, :integer, required: true
   attr :label, :string, required: true
+  attr :navigate, :any, default: nil
 
   def stat(assigns) do
     ~H"""
-    <div class="text-center rounded-2xl bg-base-content/[0.04] hover:bg-base-content/[0.07] py-3.5 px-3 border border-base-content/[0.06] transition-all duration-200 group">
+    <.link
+      :if={@navigate}
+      navigate={@navigate}
+      class="text-center rounded-2xl bg-base-content/[0.04] hover:bg-base-content/[0.07] py-3.5 px-3 border border-base-content/[0.06] transition-all duration-200 group active:scale-95"
+    >
+      <div class="font-display text-2xl font-extrabold text-base-content tracking-tight group-hover:text-primary transition-colors">
+        {@count}
+      </div>
+      <div class="text-[10px] font-bold text-base-content/50 tracking-wider uppercase mt-0.5">
+        {@label}
+      </div>
+    </.link>
+    <div
+      :if={!@navigate}
+      class="text-center rounded-2xl bg-base-content/[0.04] hover:bg-base-content/[0.07] py-3.5 px-3 border border-base-content/[0.06] transition-all duration-200 group"
+    >
       <div class="font-display text-2xl font-extrabold text-base-content tracking-tight group-hover:text-primary transition-colors">
         {@count}
       </div>
@@ -1073,6 +1089,61 @@ defmodule AgoraWeb.AgoraComponents do
         class="toggle toggle-primary toggle-xs"
       />
     </label>
+    """
+  end
+
+  @doc """
+  Ephemeral, PubSub-only Gathering chat — shared by `AgoraWeb.GatheringLive.Show`
+  (listener view) and `AgoraWeb.GatheringLive.New` (the broadcaster's own
+  Studio page, which stays mounted for the whole broadcast, so the host
+  needs to be able to see and answer the room too). Both LiveViews own
+  their own `chat_messages`/`chat_draft` assigns and `"send_chat"` /
+  `{:chat_message, message}` handling — this component is just the
+  rendering, kept in one place so the two pages' chat UIs can't drift.
+  """
+  attr :messages, :list, required: true
+  attr :draft, :string, required: true
+
+  def chat_panel(assigns) do
+    ~H"""
+    <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-3">
+      <div class="flex items-center justify-between text-xs font-bold text-base-content/80 pb-1">
+        <span class="flex items-center gap-1.5">
+          <.icon name="hero-chat-bubble-left-right" class="size-4 text-primary" /> Live Chat
+        </span>
+        <span class="text-[10px] text-base-content/40">Ephemeral Room Chat</span>
+      </div>
+
+      <div
+        id="chat-messages"
+        class="h-52 overflow-y-auto rounded-xl well p-3.5 space-y-2 border border-base-content/[0.04] flex flex-col-reverse custom-scrollbar"
+      >
+        <div
+          :for={message <- @messages}
+          class="text-xs leading-relaxed bg-base-content/[0.02] p-2 rounded-lg border border-base-content/[0.03]"
+        >
+          <span class="font-bold text-primary mr-1.5">{message.display_name}:</span>
+          <span class="text-base-content/90">{message.body}</span>
+        </div>
+      </div>
+
+      <form phx-submit="send_chat" class="flex items-center gap-2 pt-1">
+        <input
+          type="text"
+          name="body"
+          value={@draft}
+          placeholder="Say something to the room..."
+          autocomplete="off"
+          class="input input-sm flex-1 well border-base-content/10 text-base-content placeholder:text-base-content/30 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-xs h-10"
+        />
+        <button
+          type="submit"
+          class="btn btn-sm btn-primary font-bold text-xs active:scale-95 transition-all h-10 px-4"
+        >
+          Send
+        </button>
+      </form>
+    </div>
     """
   end
 end

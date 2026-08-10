@@ -21,7 +21,7 @@ defmodule AgoraWeb.ProfileLiveTest do
       assert html =~ profile.display_name
       assert html =~ "Cling"
       refute html =~ "hero-cog-6-tooth"
-      assert html =~ ">0<"
+      assert html =~ ~r/>\s*0\s*</
     end
 
     test "owner sees settings gear and the account menu, not a Cling button", %{
@@ -135,7 +135,7 @@ defmodule AgoraWeb.ProfileLiveTest do
 
       # the LiveView subscribed to user:<bob.id>:stats in mount and should
       # re-render with the fresh count once the broadcast lands
-      assert render(lv) =~ ">1<"
+      assert render(lv) =~ ~r/>\s*1\s*</
     end
   end
 
@@ -187,7 +187,7 @@ defmodule AgoraWeb.ProfileLiveTest do
         |> render_submit()
 
       assert html =~ "God moved mightily today"
-      assert html =~ ">1<"
+      assert html =~ ~r/>\s*1\s*</
       refute has_element?(lv, "textarea[name='tiding[body]']")
     end
   end
@@ -299,6 +299,73 @@ defmodule AgoraWeb.ProfileLiveTest do
       {:ok, _lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{bob.id}")
       refute html =~ "avatar-form"
       refute html =~ "cover-form"
+    end
+  end
+
+  describe "clingers and clings links" do
+    test "the Clingers stat links to the clingers list", %{conn: conn, alice: alice} do
+      {:ok, _lv, html} = live(conn, ~p"/profile/#{alice.id}")
+      assert html =~ ~p"/profile/#{alice.id}/clingers"
+    end
+
+    test "the Clings stat links to the clings list", %{conn: conn, alice: alice} do
+      {:ok, _lv, html} = live(conn, ~p"/profile/#{alice.id}")
+      assert html =~ ~p"/profile/#{alice.id}/clings"
+    end
+
+    test "clicking the Clingers stat navigates to the clingers list", %{conn: conn, alice: alice} do
+      {:ok, lv, _html} = live(conn, ~p"/profile/#{alice.id}")
+
+      {:ok, _lv2, html} =
+        lv
+        |> element("a", "Clingers")
+        |> render_click()
+        |> follow_redirect(conn)
+
+      assert html =~ "Clingers &amp; Clings" || html =~ "Clingers"
+    end
+  end
+
+  describe "editing the profile" do
+    test "the owner can update display name, tagline, and bio", %{conn: conn, alice: alice} do
+      {:ok, lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+      assert html =~ "Edit Profile"
+
+      html =
+        lv
+        |> form("#edit-profile-form",
+          profile: %{
+            display_name: "Alice of Ayingba",
+            tagline: "Voice of the morning show",
+            bio: "I love gospel radio."
+          }
+        )
+        |> render_submit()
+
+      assert html =~ "Alice of Ayingba"
+      assert html =~ "Voice of the morning show"
+      assert html =~ "I love gospel radio."
+
+      profile = Profiles.get_or_create!(alice)
+      assert profile.display_name == "Alice of Ayingba"
+      assert profile.tagline == "Voice of the morning show"
+      assert profile.bio == "I love gospel radio."
+    end
+
+    test "validation errors surface without saving", %{conn: conn, alice: alice} do
+      {:ok, lv, _html} = live(log_in_user(conn, alice), ~p"/profile/#{alice.id}")
+
+      html =
+        lv
+        |> form("#edit-profile-form", profile: %{display_name: ""})
+        |> render_change()
+
+      assert html =~ "can&#39;t be blank"
+    end
+
+    test "a visitor does not see an Edit Profile button", %{conn: conn, alice: alice, bob: bob} do
+      {:ok, _lv, html} = live(log_in_user(conn, alice), ~p"/profile/#{bob.id}")
+      refute html =~ "Edit Profile"
     end
   end
 

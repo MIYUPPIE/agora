@@ -33,6 +33,7 @@ defmodule AgoraWeb.ProfileLive do
      |> assign(:is_owner, is_owner)
      |> assign(:composer, nil)
      |> assign(:live_now, [])
+     |> assign(:profile_form, to_form(Profiles.change_profile(profile)))
      |> assign_stats(owner.id, viewer)
      |> assign_posts()
      |> allow_upload(:images,
@@ -92,6 +93,38 @@ defmodule AgoraWeb.ProfileLive do
       viewer ->
         :ok = Social.uncling(viewer.id, socket.assigns.owner.id)
         {:noreply, assign_stats(socket, socket.assigns.owner.id, viewer)}
+    end
+  end
+
+  def handle_event("validate_profile", %{"profile" => params}, socket) do
+    if socket.assigns.is_owner do
+      form =
+        socket.assigns.profile
+        |> Profiles.change_profile(params)
+        |> Map.put(:action, :validate)
+        |> to_form()
+
+      {:noreply, assign(socket, :profile_form, form)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("save_profile", %{"profile" => params}, socket) do
+    if socket.assigns.is_owner do
+      case Profiles.update_profile(socket.assigns.profile, params) do
+        {:ok, profile} ->
+          {:noreply,
+           socket
+           |> assign(:profile, profile)
+           |> assign(:profile_form, to_form(Profiles.change_profile(profile)))
+           |> put_flash(:info, "Profile updated.")}
+
+        {:error, changeset} ->
+          {:noreply, assign(socket, :profile_form, to_form(changeset))}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -294,7 +327,24 @@ defmodule AgoraWeb.ProfileLive do
                       Clinging
                     </button>
                   </div>
+
+                  <div :if={@is_owner} class="shrink-0">
+                    <button
+                      type="button"
+                      phx-click={show_modal("edit-profile-modal")}
+                      class="btn btn-outline btn-sm rounded-full font-semibold border-base-content/20 hover:bg-base-content/10 text-base-content px-5 active:scale-95 transition-all"
+                    >
+                      <.icon name="hero-pencil-square" class="size-3.5" /> Edit Profile
+                    </button>
+                  </div>
                 </div>
+
+                <p
+                  :if={@profile.tagline not in [nil, ""]}
+                  class="text-xs font-semibold text-primary/90"
+                >
+                  {@profile.tagline}
+                </p>
 
                 <p
                   :if={@profile.bio not in [nil, ""]}
@@ -310,8 +360,12 @@ defmodule AgoraWeb.ProfileLive do
           <div class="grid grid-cols-4 gap-2.5 mt-4">
             <.stat count={@post_count} label="Posts" />
             <.stat count={@gathering_count} label="Gatherings" />
-            <.stat count={@clinger_count} label="Clingers" />
-            <.stat count={@cling_count} label="Clings" />
+            <.stat
+              count={@clinger_count}
+              label="Clingers"
+              navigate={~p"/profile/#{@owner.id}/clingers"}
+            />
+            <.stat count={@cling_count} label="Clings" navigate={~p"/profile/#{@owner.id}/clings"} />
           </div>
 
           <!-- Quick Action Bar for Profile Owner (Inline) -->
@@ -484,6 +538,50 @@ defmodule AgoraWeb.ProfileLive do
           </div>
         </div>
       </div>
+
+      <.modal :if={@is_owner} id="edit-profile-modal">
+        <h3 class="font-display text-base font-bold text-base-content mb-4 flex items-center gap-2 pr-8">
+          <.icon name="hero-pencil-square" class="size-4 text-primary" /> Edit Profile
+        </h3>
+        <.form
+          for={@profile_form}
+          id="edit-profile-form"
+          phx-change="validate_profile"
+          phx-submit="save_profile"
+          class="space-y-3"
+        >
+          <.input field={@profile_form[:display_name]} type="text" label="Display Name" required />
+          <.input
+            field={@profile_form[:tagline]}
+            type="text"
+            label="Tagline"
+            placeholder="A short line under your name"
+          />
+          <.input
+            field={@profile_form[:bio]}
+            type="textarea"
+            label="Bio"
+            placeholder="Tell people about yourself"
+            rows="4"
+          />
+          <div class="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              phx-click={hide_modal("edit-profile-modal")}
+              class="btn btn-sm btn-ghost text-xs text-base-content/60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              phx-disable-with="Saving..."
+              class="btn btn-sm btn-primary font-bold text-xs active:scale-95 transition-all px-5"
+            >
+              Save Changes
+            </button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end

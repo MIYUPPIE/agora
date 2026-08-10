@@ -15,7 +15,7 @@ defmodule Agora.Posts do
   import Ecto.Query
 
   alias Agora.Posts.{Comment, Post, PostMedia, Reaction}
-  alias Agora.{Repo, Social}
+  alias Agora.{Notifications, Repo, Social}
 
   # ── Creating posts ──────────────────────────────────────────────────────
 
@@ -222,6 +222,8 @@ defmodule Agora.Posts do
       %Reaction{}
       |> Reaction.changeset(%{user_id: user_id, post_id: post_id, kind: kind})
       |> Repo.insert()
+
+      notify_post_owner(post_id, user_id, :reaction, reaction_kind: kind)
     end
 
     Phoenix.PubSub.broadcast(Agora.PubSub, "post:#{post_id}", {:reaction_updated, post_id})
@@ -238,10 +240,21 @@ defmodule Agora.Posts do
     |> case do
       {:ok, comment} ->
         Phoenix.PubSub.broadcast(Agora.PubSub, "post:#{post_id}", {:comment_added, post_id})
+        notify_post_owner(post_id, user_id, :comment)
         {:ok, comment}
 
       error ->
         error
+    end
+  end
+
+  defp notify_post_owner(post_id, actor_id, type, opts \\ []) do
+    case Post |> where(id: ^post_id) |> select([p], p.user_id) |> Repo.one() do
+      nil ->
+        :ok
+
+      owner_id ->
+        Notifications.notify(owner_id, actor_id, type, Keyword.put(opts, :post_id, post_id))
     end
   end
 

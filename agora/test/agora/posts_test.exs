@@ -3,7 +3,7 @@ defmodule Agora.PostsTest do
 
   import Agora.AccountsFixtures
 
-  alias Agora.{Posts, Social}
+  alias Agora.{Notifications, Posts, Social}
 
   describe "create_tiding/2" do
     test "creates a tiding post and fans out to clingers" do
@@ -100,7 +100,9 @@ defmodule Agora.PostsTest do
       alice = user_fixture()
       bob = user_fixture()
       {:ok, older} = Posts.create_tiding(alice.id, %{"body" => "first"})
-      Process.sleep(50)
+      # utc_datetime (second precision) + a non-monotonic UUID tie-break
+      # means the ordering test needs a real second between inserts.
+      Process.sleep(1100)
       {:ok, newer} = Posts.create_tiding(alice.id, %{"body" => "second"})
       {:ok, _bobs} = Posts.create_tiding(bob.id, %{"body" => "not alice's"})
 
@@ -206,6 +208,40 @@ defmodule Agora.PostsTest do
                torched?: false
              }
     end
+
+    test "toggle_reaction notifies the post's author when a reaction is added" do
+      author = user_fixture()
+      reactor = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "react to me"})
+
+      :ok = Posts.toggle_reaction(reactor.id, post.id, :torch)
+
+      assert [notification] = Notifications.list_for_user(author.id)
+      assert notification.type == :reaction
+      assert notification.reaction_kind == :torch
+      assert notification.actor_id == reactor.id
+      assert notification.post_id == post.id
+    end
+
+    test "toggle_reaction does not notify again when a reaction is removed" do
+      author = user_fixture()
+      reactor = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "react to me"})
+
+      :ok = Posts.toggle_reaction(reactor.id, post.id, :heart)
+      :ok = Posts.toggle_reaction(reactor.id, post.id, :heart)
+
+      assert length(Notifications.list_for_user(author.id)) == 1
+    end
+
+    test "reacting to your own post does not notify you" do
+      author = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "my own post"})
+
+      :ok = Posts.toggle_reaction(author.id, post.id, :heart)
+
+      assert Notifications.list_for_user(author.id) == []
+    end
   end
 
   describe "comments" do
@@ -255,6 +291,28 @@ defmodule Agora.PostsTest do
 
       assert counts[commented_post.id] == 2
       assert counts[untouched_post.id] == 0
+    end
+
+    test "add_comment notifies the post's author" do
+      author = user_fixture()
+      commenter = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "comment on me"})
+
+      {:ok, _comment} = Posts.add_comment(commenter.id, post.id, "Amen!")
+
+      assert [notification] = Notifications.list_for_user(author.id)
+      assert notification.type == :comment
+      assert notification.actor_id == commenter.id
+      assert notification.post_id == post.id
+    end
+
+    test "commenting on your own post does not notify you" do
+      author = user_fixture()
+      {:ok, post} = Posts.create_tiding(author.id, %{"body" => "my own post"})
+
+      {:ok, _comment} = Posts.add_comment(author.id, post.id, "talking to myself")
+
+      assert Notifications.list_for_user(author.id) == []
     end
   end
 end

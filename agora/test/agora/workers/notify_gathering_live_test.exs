@@ -3,7 +3,7 @@ defmodule Agora.Workers.NotifyGatheringLiveTest do
 
   import Agora.AccountsFixtures
 
-  alias Agora.{Gatherings, Social}
+  alias Agora.{Gatherings, Notifications, Social}
   alias Agora.Workers.NotifyGatheringLive
 
   test "notifies every Clinger of the broadcaster, and nobody else" do
@@ -29,5 +29,22 @@ defmodule Agora.Workers.NotifyGatheringLiveTest do
     {:ok, gathering} = Gatherings.create_gathering(broadcaster.id, %{"title" => "Quiet room"})
 
     assert :ok = perform_job(NotifyGatheringLive, %{"gathering_id" => gathering.id})
+  end
+
+  test "persists a notification for every Clinger, and nobody else" do
+    broadcaster = user_fixture()
+    clinger = user_fixture()
+    stranger = user_fixture()
+    {:ok, _} = Social.cling(clinger.id, broadcaster.id)
+
+    {:ok, gathering} = Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+    assert :ok = perform_job(NotifyGatheringLive, %{"gathering_id" => gathering.id})
+
+    assert [notification] = Notifications.list_for_user(clinger.id)
+    assert notification.type == :gathering_live
+    assert notification.actor_id == broadcaster.id
+    assert notification.gathering_id == gathering.id
+    assert Notifications.list_for_user(stranger.id) == []
   end
 end

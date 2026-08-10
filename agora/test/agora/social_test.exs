@@ -3,7 +3,7 @@ defmodule Agora.SocialTest do
 
   import Agora.AccountsFixtures
 
-  alias Agora.Social
+  alias Agora.{Notifications, Social}
 
   describe "cling/2 and uncling/2" do
     test "clinging updates both sides' counts" do
@@ -83,6 +83,74 @@ defmodule Agora.SocialTest do
 
       assert_receive {:stats_updated, alice_id} when alice_id == alice.id
       assert_receive {:stats_updated, bob_id} when bob_id == bob.id
+    end
+
+    test "clinging notifies the person being clinged to" do
+      alice = user_fixture()
+      bob = user_fixture()
+
+      {:ok, _} = Social.cling(alice.id, bob.id)
+
+      assert [notification] = Notifications.list_for_user(bob.id)
+      assert notification.type == :cling
+      assert notification.actor_id == alice.id
+    end
+  end
+
+  describe "list_clingers/1 and list_clings/1" do
+    test "list_clingers returns the people who follow the user, newest first" do
+      alice = user_fixture()
+      bob = user_fixture()
+      carol = user_fixture()
+      {:ok, _} = Social.cling(bob.id, alice.id)
+      # utc_datetime (second precision) + a non-monotonic UUID tie-break
+      # means the ordering test needs a real second between inserts.
+      Process.sleep(1100)
+      {:ok, _} = Social.cling(carol.id, alice.id)
+
+      assert Enum.map(Social.list_clingers(alice.id), & &1.id) == [carol.id, bob.id]
+    end
+
+    test "list_clings returns the people the user follows, newest first" do
+      alice = user_fixture()
+      bob = user_fixture()
+      carol = user_fixture()
+      {:ok, _} = Social.cling(alice.id, bob.id)
+      Process.sleep(1100)
+      {:ok, _} = Social.cling(alice.id, carol.id)
+
+      assert Enum.map(Social.list_clings(alice.id), & &1.id) == [carol.id, bob.id]
+    end
+
+    test "each returned user has their profile preloaded" do
+      alice = user_fixture()
+      bob = user_fixture()
+      {:ok, _} = Social.cling(alice.id, bob.id)
+
+      assert [clinged] = Social.list_clings(alice.id)
+      assert %Agora.Profiles.Profile{} = clinged.profile
+    end
+  end
+
+  describe "clinging_set/2" do
+    test "returns the subset of ids the viewer clings to" do
+      viewer = user_fixture()
+      clinged = user_fixture()
+      not_clinged = user_fixture()
+      {:ok, _} = Social.cling(viewer.id, clinged.id)
+
+      assert Social.clinging_set(viewer.id, [clinged.id, not_clinged.id]) ==
+               MapSet.new([clinged.id])
+    end
+
+    test "returns an empty set for an anonymous (nil) viewer" do
+      clinged = user_fixture()
+      assert Social.clinging_set(nil, [clinged.id]) == MapSet.new()
+    end
+
+    test "returns an empty set for an empty id list without querying" do
+      viewer = user_fixture()
+      assert Social.clinging_set(viewer.id, []) == MapSet.new()
     end
   end
 end

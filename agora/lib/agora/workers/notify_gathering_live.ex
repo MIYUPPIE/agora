@@ -8,7 +8,7 @@ defmodule Agora.Workers.NotifyGatheringLive do
 
   use Oban.Worker, queue: :default, max_attempts: 3
 
-  alias Agora.{Gatherings, Social}
+  alias Agora.{Gatherings, Notifications, Social}
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"gathering_id" => gathering_id}}) do
@@ -20,6 +20,10 @@ defmodule Agora.Workers.NotifyGatheringLive do
         "user:#{clinger_id}:notifications",
         {:gathering_live_notification, gathering.id, gathering.user.profile.display_name,
          gathering.title}
+      )
+
+      Notifications.notify(clinger_id, gathering.user_id, :gathering_live,
+        gathering_id: gathering.id
       )
     end
 

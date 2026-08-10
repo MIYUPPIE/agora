@@ -80,6 +80,20 @@ defmodule AgoraWeb.Layouts do
               </.link>
 
               <.link
+                navigate={~p"/notifications"}
+                class="relative btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-base-content"
+                title="Notifications"
+              >
+                <.icon name="hero-bell" class="size-4" />
+                <span
+                  :if={unread_notification_count(@current_scope) > 0}
+                  class="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold leading-none"
+                >
+                  {badge_count(unread_notification_count(@current_scope))}
+                </span>
+              </.link>
+
+              <.link
                 navigate={~p"/profile/#{@current_scope.user.id}"}
                 class="flex items-center justify-center size-8 rounded-full bg-primary/20 text-primary font-bold text-xs hover:bg-primary/30 transition-colors"
                 title="Profile"
@@ -163,6 +177,20 @@ defmodule AgoraWeb.Layouts do
           <span class="text-[10px] font-medium">Live</span>
         </.link>
         <.link
+          :if={@current_scope}
+          navigate={~p"/notifications"}
+          class="relative flex flex-col items-center gap-1 text-base-content/60 hover:text-primary active:scale-95 transition-all"
+        >
+          <.icon name="hero-bell" class="size-5" />
+          <span
+            :if={unread_notification_count(@current_scope) > 0}
+            class="absolute -top-0.5 right-1.5 flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full bg-primary text-white text-[8px] font-bold leading-none"
+          >
+            {badge_count(unread_notification_count(@current_scope))}
+          </span>
+          <span class="text-[10px] font-medium">Alerts</span>
+        </.link>
+        <.link
           navigate={if @current_scope, do: ~p"/gatherings/new", else: ~p"/users/log-in"}
           class="flex items-center justify-center size-11 rounded-full bg-primary text-white active:scale-90 -mt-5 border-2 border-base-100 shadow-lg transition-transform"
         >
@@ -204,6 +232,13 @@ defmodule AgoraWeb.Layouts do
   end
 
   defp initial(_), do: "U"
+
+  defp unread_notification_count(nil), do: 0
+  defp unread_notification_count(%{user: nil}), do: 0
+  defp unread_notification_count(%{user: user}), do: Agora.Notifications.unread_count(user.id)
+
+  defp badge_count(n) when n > 99, do: "99+"
+  defp badge_count(n), do: n
 
   @doc """
   Shows the flash group with standard titles and content.

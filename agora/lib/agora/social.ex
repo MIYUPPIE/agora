@@ -11,6 +11,7 @@ defmodule Agora.Social do
 
   import Ecto.Query
 
+  alias Agora.Notifications
   alias Agora.Social.Cling
   alias Agora.Repo
 
@@ -40,6 +41,55 @@ defmodule Agora.Social do
     |> Repo.exists?()
   end
 
+  @doc """
+  People who follow `user_id`, newest first, with their profile
+  preloaded — the "Clingers" tab on the follow-list page.
+  """
+  def list_clingers(user_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 200)
+
+    Cling
+    |> where(clinged_id: ^user_id)
+    |> order_by(desc: :inserted_at)
+    |> limit(^limit)
+    |> preload(clinger: :profile)
+    |> Repo.all()
+    |> Enum.map(& &1.clinger)
+  end
+
+  @doc """
+  People `user_id` follows, newest first, with their profile preloaded
+  — the "Clings" tab on the follow-list page.
+  """
+  def list_clings(user_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 200)
+
+    Cling
+    |> where(clinger_id: ^user_id)
+    |> order_by(desc: :inserted_at)
+    |> limit(^limit)
+    |> preload(clinged: :profile)
+    |> Repo.all()
+    |> Enum.map(& &1.clinged)
+  end
+
+  @doc """
+  The subset of `user_ids` that `viewer_id` clings to, as a `MapSet` —
+  one query for a whole list of rows instead of one per row. `nil`
+  viewer (not signed in) always yields an empty set.
+  """
+  def clinging_set(viewer_id, user_ids)
+  def clinging_set(nil, _user_ids), do: MapSet.new()
+  def clinging_set(_viewer_id, []), do: MapSet.new()
+
+  def clinging_set(viewer_id, user_ids) do
+    Cling
+    |> where([c], c.clinger_id == ^viewer_id and c.clinged_id in ^user_ids)
+    |> select([c], c.clinged_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   def cling(clinger_id, clinged_id) do
     %Cling{}
     |> Cling.changeset(%{clinger_id: clinger_id, clinged_id: clinged_id})
@@ -48,6 +98,7 @@ defmodule Agora.Social do
       {:ok, cling} ->
         broadcast_stats(clinger_id)
         broadcast_stats(clinged_id)
+        Notifications.notify(clinged_id, clinger_id, :cling)
         {:ok, cling}
 
       error ->
