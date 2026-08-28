@@ -15,6 +15,27 @@ defmodule Agora.Gatherings do
 
   def get_by_stream_key(stream_key), do: Repo.get_by(Gathering, stream_key: stream_key)
 
+  @doc """
+  A user's most recent in-progress (`:scheduled` or `:live`) Gathering,
+  if any.
+
+  Lets `AgoraWeb.GatheringLive.New` resume a broadcaster straight back
+  into their existing Studio session (ingest URL, effects, chat,
+  transcript) on mount, instead of only ever offering a blank "create"
+  form. Without this, refreshing the tab (or closing and reopening it)
+  after pointing OBS at the ingest URL would stay silently connected
+  server-side while the broadcaster lost every control over it — and
+  submitting the create form again would mint a second, unrelated
+  Gathering with its own stream key rather than resuming the first.
+  """
+  def get_active_for_user(user_id) do
+    Gathering
+    |> where([g], g.user_id == ^user_id and g.status in [:scheduled, :live])
+    |> order_by(desc: :inserted_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   @doc "Creates a scheduled Gathering with a fresh, unguessable stream key."
   def create_gathering(user_id, attrs) do
     %Gathering{}

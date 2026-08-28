@@ -217,7 +217,13 @@ defmodule Agora.Media.Audio.AACCodecTest do
 
       pipeline = Testing.Pipeline.start_link_supervised!(spec: spec)
 
-      assert_sink_stream_format(pipeline, :sink, %AAC{encapsulation: :ADTS})
+      # Chains decode -> effects -> AACEncoder, so the first stream_format
+      # notification out of :sink inherits AACEncoder's own ~1.5-2s ffmpeg
+      # startup priming latency (see its moduledoc) on top of decode/effects
+      # time — comfortably past assert_sink_stream_format/4's 2000ms
+      # default, which made this specific (chained) test flaky where the
+      # standalone AACEncoder test above, with the same default, wasn't.
+      assert_sink_stream_format(pipeline, :sink, %AAC{encapsulation: :ADTS}, 10_000)
 
       adts_out = collect_sink_payload(pipeline)
       assert byte_size(adts_out) > 0

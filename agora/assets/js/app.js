@@ -27,12 +27,13 @@ import topbar from "../vendor/topbar"
 import {HlsPlayer} from "./hooks/hls_player"
 import {BrowserBroadcast} from "./hooks/browser_broadcast"
 import {Tilt} from "./hooks/tilt"
+import {CopyToClipboard} from "./hooks/copy_to_clipboard"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, HlsPlayer, BrowserBroadcast, Tilt},
+  hooks: {...colocatedHooks, HlsPlayer, BrowserBroadcast, Tilt, CopyToClipboard},
 })
 
 // Show progress bar on live navigation and form submits

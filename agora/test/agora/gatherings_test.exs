@@ -96,6 +96,62 @@ defmodule Agora.GatheringsTest do
     end
   end
 
+  describe "get_active_for_user/1" do
+    test "returns a scheduled gathering" do
+      user = user_fixture()
+      {:ok, gathering} = Gatherings.create_gathering(user.id, %{"title" => "Sunday service"})
+
+      assert Gatherings.get_active_for_user(user.id).id == gathering.id
+    end
+
+    test "returns a live gathering" do
+      user = user_fixture()
+      {:ok, gathering} = Gatherings.create_gathering(user.id, %{"title" => "Sunday service"})
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      assert Gatherings.get_active_for_user(user.id).id == gathering.id
+    end
+
+    test "ignores an ended gathering" do
+      user = user_fixture()
+      {:ok, gathering} = Gatherings.create_gathering(user.id, %{"title" => "Sunday service"})
+      :ok = Gatherings.mark_live!(gathering.id)
+      :ok = Gatherings.mark_ended!(gathering.id)
+
+      assert Gatherings.get_active_for_user(user.id) == nil
+    end
+
+    test "returns the most recently created active gathering" do
+      user = user_fixture()
+      {:ok, older} = Gatherings.create_gathering(user.id, %{"title" => "First"})
+      {:ok, newer} = Gatherings.create_gathering(user.id, %{"title" => "Second"})
+
+      # inserted_at has second-level precision, so two gatherings created
+      # back-to-back in the same test can otherwise tie — backdate `older`
+      # to make the ordering assertion deterministic without a real sleep.
+      one_minute_ago = DateTime.add(DateTime.utc_now(:second), -60, :second)
+
+      Ecto.Query.from(g in Agora.Gatherings.Gathering, where: g.id == ^older.id)
+      |> Agora.Repo.update_all(set: [inserted_at: one_minute_ago])
+
+      assert Gatherings.get_active_for_user(user.id).id == newer.id
+      refute Gatherings.get_active_for_user(user.id).id == older.id
+    end
+
+    test "never returns another user's gathering" do
+      alice = user_fixture()
+      bob = user_fixture()
+      {:ok, _} = Gatherings.create_gathering(bob.id, %{"title" => "Bob's broadcast"})
+
+      assert Gatherings.get_active_for_user(alice.id) == nil
+    end
+
+    test "nil when the user has no gatherings at all" do
+      user = user_fixture()
+      assert Gatherings.get_active_for_user(user.id) == nil
+    end
+  end
+
   describe "count_for_user/1" do
     test "counts a user's own gatherings regardless of status" do
       alice = user_fixture()
