@@ -78,6 +78,23 @@ defmodule Agora.GatheringsTest do
     end
   end
 
+  describe "server_url/0" do
+    test "is the ingest url's app path with the stream key removed" do
+      user = user_fixture()
+      {:ok, gathering} = Gatherings.create_gathering(user.id, %{"title" => "Sunday service"})
+
+      assert Gatherings.server_url() <> "/#{gathering.stream_key}" ==
+               Gatherings.ingest_url(gathering)
+    end
+
+    test "never contains a stream key, so pasting it alone into OBS's Server field can't leak one" do
+      user = user_fixture()
+      {:ok, gathering} = Gatherings.create_gathering(user.id, %{"title" => "Sunday service"})
+
+      refute Gatherings.server_url() =~ gathering.stream_key
+    end
+  end
+
   describe "list_live/0" do
     test "returns only gatherings currently live" do
       user = user_fixture()

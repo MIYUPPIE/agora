@@ -73,8 +73,27 @@ defmodule Agora.Gatherings do
 
   @doc "The RTMP ingest URL a broadcaster points OBS/their encoder at."
   def ingest_url(%Gathering{stream_key: stream_key}) do
+    "#{server_url()}/#{stream_key}"
+  end
+
+  @doc """
+  The RTMP "Server" value for encoders (OBS, Streamlabs) that split ingest
+  into a Server field and a separate Stream Key field, rather than taking
+  one combined URL.
+
+  This must never include the stream key. OBS's "Custom..." RTMP service
+  type only has two fields, and if a broadcaster pastes the full
+  `ingest_url/1` (key included) into "Server" and leaves "Stream Key"
+  blank, OBS sends everything after the host as the RTMP `app` (here,
+  `"live/<key>"`) and publishes with an empty stream key — which
+  `RTMPEndpoint.handle_new_client/3` correctly rejects as unknown, but
+  looks to the broadcaster like a mysteriously failing connection. Handing
+  out the two pieces separately, alongside the combined URL for encoders
+  that only take one field, heads that off.
+  """
+  def server_url do
     host = Application.get_env(:agora, :rtmp_host, "localhost")
-    "rtmp://#{host}:#{rtmp_port()}/live/#{stream_key}"
+    "rtmp://#{host}:#{rtmp_port()}/live"
   end
 
   @doc """

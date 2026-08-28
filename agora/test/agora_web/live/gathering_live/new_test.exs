@@ -315,6 +315,68 @@ defmodule AgoraWeb.GatheringLive.NewTest do
     end
   end
 
+  describe "the broadcaster's \"End Gathering\" button" do
+    test "renders once a Gathering exists, with a confirmation prompt", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert html =~ "End Gathering"
+      assert has_element?(lv, "button[phx-click='stop_broadcast'][data-confirm]")
+    end
+
+    test "clicking it ends an OBS-style Gathering (no browser bridge involved) and the banner updates live",
+         %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+
+      Phoenix.PubSub.broadcast(
+        Agora.PubSub,
+        "gathering:#{gathering.id}",
+        {:gathering_live, gathering.id}
+      )
+
+      assert render(lv) =~ "You&#39;re live"
+
+      render_click(lv, "stop_broadcast")
+
+      assert Gatherings.get!(gathering.id).status == :ended
+
+      # stop_broadcast triggers the same {:gathering_ended, id} PubSub
+      # message a natural disconnect would — the LiveView picks it up via
+      # handle_info/2 (async relative to the click itself), same as every
+      # other "ended" assertion in this file that renders again afterward.
+      html = render(lv)
+      refute html =~ "You&#39;re live"
+      refute html =~ "End Gathering"
+      assert_enqueued(worker: Agora.Workers.ArchiveGathering, args: %{gathering_id: gathering.id})
+    end
+
+    test "clicking it while a pipeline is registered delegates to it instead of ending the Gathering directly",
+         %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+      {:ok, _pid} = FakePipeline.start_link(gathering_id: gathering.id, test_pid: self())
+
+      render_click(lv, "stop_broadcast")
+
+      assert_receive {:got_call, :stop_broadcast}
+      # FakePipeline is a bare echo stub, so it doesn't actually run the
+      # real pipeline's own end_gathering_once/1 — status staying :live
+      # here proves the click delegated rather than ending it twice over.
+      assert Gatherings.get!(gathering.id).status == :live
+    end
+  end
+
   describe "the OBS ingest URL's copy control" do
     test "renders the copy hook wired to the exact ingest URL text", %{conn: conn} do
       user = user_fixture()
@@ -327,6 +389,30 @@ defmodule AgoraWeb.GatheringLive.NewTest do
       assert html =~ ~s(phx-hook="CopyToClipboard")
       assert html =~ ~s(data-role="ingest-url")
       assert html =~ Gatherings.ingest_url(gathering)
+    end
+
+    # OBS/Streamlabs' "Custom..." RTMP service type takes a Server and a
+    # Stream Key as two separate fields. A broadcaster who instead pasted
+    # the combined ingest URL into "Server" alone (leaving "Stream Key"
+    # blank) sends the whole "live/<key>" path as the RTMP app and an
+    # empty stream key — which the server correctly rejects, but looks
+    # like a broken connection with no obvious cause. These split fields
+    # exist specifically to prevent that mistake.
+    test "also renders the Server and Stream Key as separate copyable fields", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      assert html =~ ~s(id="server-url-copy")
+      assert html =~ ~s(id="stream-key-copy")
+      assert html =~ Gatherings.server_url()
+      assert html =~ gathering.stream_key
+
+      # The Server field on its own must never carry the stream key —
+      # that's exactly the value that, pasted alone, reproduces the bug.
+      refute Gatherings.server_url() =~ gathering.stream_key
     end
   end
 

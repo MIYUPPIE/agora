@@ -31,7 +31,7 @@ defmodule AgoraWeb.GatheringLive.New do
   use AgoraWeb, :live_view
 
   alias Agora.{Gatherings, Profiles, Transcripts}
-  alias Agora.Media.{AudioEffects, Transcription}
+  alias Agora.Media.{AudioEffects, GatheringPipeline, Transcription}
   alias AgoraWeb.BroadcastChannel
 
   @max_chat_messages 50
@@ -55,6 +55,7 @@ defmodule AgoraWeb.GatheringLive.New do
            gathering: nil,
            broadcast_token: nil,
            live?: false,
+           gathering_ended?: false,
            effect_params: nil,
            chat_messages: [],
            chat_draft: "",
@@ -81,6 +82,7 @@ defmodule AgoraWeb.GatheringLive.New do
       gathering: gathering,
       broadcast_token: BroadcastChannel.broadcast_token(gathering, user),
       live?: gathering.status == :live,
+      gathering_ended?: false,
       effect_params: AudioEffects.get_params(user.id),
       chat_messages: [],
       chat_draft: "",
@@ -103,11 +105,23 @@ defmodule AgoraWeb.GatheringLive.New do
          socket
          |> assign(:gathering, gathering)
          |> assign(:broadcast_token, BroadcastChannel.broadcast_token(gathering, user))
+         |> assign(:gathering_ended?, false)
          |> assign(:effect_params, AudioEffects.get_params(user.id))}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Give your Gathering a title.")}
     end
+  end
+
+  # The broadcaster's "End Gathering" button — works regardless of how
+  # they're connected (OBS/RTMP directly, or the browser-mic bridge) and
+  # regardless of which device/tab is doing the asking; see
+  # GatheringPipeline.stop/1's moduledoc. The UI itself updates via the
+  # same {:gathering_ended, id} PubSub message a natural disconnect sends
+  # (handled below), not directly here.
+  def handle_event("stop_broadcast", _params, socket) do
+    GatheringPipeline.stop(socket.assigns.gathering.id)
+    {:noreply, socket}
   end
 
   def handle_event("update_effect", changes, socket) do
@@ -178,7 +192,7 @@ defmodule AgoraWeb.GatheringLive.New do
 
   def handle_info({:gathering_ended, id}, socket) do
     if socket.assigns.gathering && socket.assigns.gathering.id == id do
-      {:noreply, assign(socket, :live?, false)}
+      {:noreply, assign(socket, live?: false, gathering_ended?: true)}
     else
       {:noreply, socket}
     end
@@ -309,7 +323,71 @@ defmodule AgoraWeb.GatheringLive.New do
             </div>
             <div class="collapse-content space-y-3 pt-2">
               <p class="text-xs text-base-content/60">
-                Point your streaming encoder (OBS, Audio Hijack, or hardware mixer) to this RTMP Ingest URL:
+                OBS and Streamlabs ask for a <strong>Server</strong>
+                and a <strong>Stream Key</strong> as two separate fields — paste each one into its matching field below. Do not paste the combined URL into the "Server" field alone, and leave "Stream Key" blank — that sends your key as part of the server address instead, which the server can't match and your connection will be rejected.
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-1">
+                  <p class="text-[11px] font-bold text-base-content/70 uppercase tracking-wide">Server</p>
+                  <div
+                    id="server-url-copy"
+                    phx-hook="CopyToClipboard"
+                    phx-update="ignore"
+                    class="relative group cursor-pointer"
+                    title="Copy server URL"
+                  >
+                    <code
+                      data-role="ingest-url"
+                      class="block well p-3.5 pr-11 rounded-xl text-xs font-mono break-all text-primary border border-primary/20"
+                    >
+                      {Gatherings.server_url()}
+                    </code>
+                    <span
+                      data-role="idle"
+                      class="absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-base-content/[0.06] text-base-content/50 group-hover:text-primary group-hover:bg-primary/10 transition-colors"
+                    >
+                      <.icon name="hero-clipboard-document" class="size-4" />
+                    </span>
+                    <span
+                      data-role="copied"
+                      class="hidden absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-emerald-400/10 text-emerald-400"
+                    >
+                      <.icon name="hero-check" class="size-4" />
+                    </span>
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-[11px] font-bold text-base-content/70 uppercase tracking-wide">Stream Key</p>
+                  <div
+                    id="stream-key-copy"
+                    phx-hook="CopyToClipboard"
+                    phx-update="ignore"
+                    class="relative group cursor-pointer"
+                    title="Copy stream key"
+                  >
+                    <code
+                      data-role="ingest-url"
+                      class="block well p-3.5 pr-11 rounded-xl text-xs font-mono break-all text-primary border border-primary/20"
+                    >
+                      {@gathering.stream_key}
+                    </code>
+                    <span
+                      data-role="idle"
+                      class="absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-base-content/[0.06] text-base-content/50 group-hover:text-primary group-hover:bg-primary/10 transition-colors"
+                    >
+                      <.icon name="hero-clipboard-document" class="size-4" />
+                    </span>
+                    <span
+                      data-role="copied"
+                      class="hidden absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-emerald-400/10 text-emerald-400"
+                    >
+                      <.icon name="hero-check" class="size-4" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs text-base-content/60 pt-1">
+                Encoders that only take a single field (ffmpeg, hardware mixers, Audio Hijack) can use this combined ingest URL instead:
               </p>
               <div
                 id="ingest-url-copy"
@@ -374,6 +452,17 @@ defmodule AgoraWeb.GatheringLive.New do
               <.icon name="hero-arrow-top-right-on-square" class="size-4" /> View as a listener
             </a>
           </div>
+
+          <button
+            :if={!@gathering_ended?}
+            type="button"
+            phx-click="stop_broadcast"
+            phx-disable-with="Ending…"
+            data-confirm="End this Gathering now? Your OBS/encoder connection will be dropped and listeners disconnected."
+            class="btn btn-sm btn-ghost text-error/70 hover:text-error hover:bg-error/10 font-bold text-xs w-full active:scale-95 transition-all rounded-xl"
+          >
+            <.icon name="hero-stop-circle" class="size-4" /> End Gathering
+          </button>
 
           <.transcript_panel
             segments={@transcript_segments}
