@@ -27,6 +27,7 @@ defmodule AgoraWeb.UserLive.Confirmation do
             class="space-y-2.5"
           >
             <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
+            <input type="hidden" name={@form[:return_to].name} value={@form[:return_to].value} />
             <.button
               name={@form[:remember_me].name}
               value="true"
@@ -54,6 +55,7 @@ defmodule AgoraWeb.UserLive.Confirmation do
             class="space-y-2.5"
           >
             <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
+            <input type="hidden" name={@form[:return_to].name} value={@form[:return_to].value} />
             <%= if @current_scope do %>
               <.button
                 phx-disable-with="Logging in..."
@@ -92,9 +94,10 @@ defmodule AgoraWeb.UserLive.Confirmation do
   end
 
   @impl true
-  def mount(%{"token" => token}, _session, socket) do
+  def mount(%{"token" => token} = params, _session, socket) do
     if user = Accounts.get_user_by_magic_link_token(token) do
-      form = to_form(%{"token" => token}, as: "user")
+      return_to = if params["return_to"] == "/users/settings", do: "/users/settings"
+      form = to_form(%{"token" => token, "return_to" => return_to}, as: "user")
 
       {:ok, assign(socket, user: user, form: form, trigger_submit: false),
        temporary_assigns: [form: nil]}

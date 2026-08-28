@@ -115,4 +115,34 @@ defmodule AgoraWeb.UserLive.ConfirmationTest do
       assert html =~ "Magic link is invalid or it has expired"
     end
   end
+
+  describe "return_to (forgot password)" do
+    test "carries an allowlisted return_to through as a hidden field", %{
+      conn: conn,
+      confirmed_user: user
+    } do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_login_instructions(user, url)
+        end)
+
+      {:ok, _lv, html} =
+        live(conn, ~p"/users/log-in/#{token}" <> "?return_to=/users/settings")
+
+      assert html =~ ~s(name="user[return_to]")
+      assert html =~ ~s(value="/users/settings")
+    end
+
+    test "drops a return_to value that isn't allowlisted", %{conn: conn, confirmed_user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_login_instructions(user, url)
+        end)
+
+      {:ok, _lv, html} =
+        live(conn, ~p"/users/log-in/#{token}" <> "?return_to=https://evil.example.com")
+
+      refute html =~ "evil.example.com"
+    end
+  end
 end

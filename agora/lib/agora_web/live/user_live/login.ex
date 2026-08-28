@@ -62,6 +62,15 @@ defmodule AgoraWeb.UserLive.Login do
               required
               class={@input_class}
             />
+            <div class="flex justify-end -mt-2">
+              <button
+                type="button"
+                phx-click="forgot_password"
+                class="text-xs text-base-content/60 hover:text-primary underline-offset-4 hover:underline transition-colors"
+              >
+                Forgot password?
+              </button>
+            </div>
             <input type="hidden" name={@form[:remember_me].name} value="true" />
             <.button class="btn btn-primary w-full h-12 text-sm font-bold text-white depth-glow active:scale-[0.97] transition-all">
               Login
@@ -76,6 +85,9 @@ defmodule AgoraWeb.UserLive.Login do
             phx-submit="submit_magic"
             class="space-y-4"
           >
+            <p :if={@reset_intent} class="text-xs text-base-content/60 -mt-1">
+              We'll email you a secure link. Use it to log in, then set a new password from Settings.
+            </p>
             <.input
               field={f[:email]}
               type="email"
@@ -87,7 +99,7 @@ defmodule AgoraWeb.UserLive.Login do
               phx-mounted={JS.focus()}
             />
             <.button class="btn btn-primary w-full h-12 text-sm font-bold text-white depth-glow active:scale-[0.97] transition-all">
-              Email Me a Login Link
+              {if @reset_intent, do: "Email Me a Password Reset Link", else: "Email Me a Login Link"}
             </.button>
           </.form>
 
@@ -97,10 +109,13 @@ defmodule AgoraWeb.UserLive.Login do
               phx-click="toggle_mode"
               class="text-base-content/60 hover:text-primary underline-offset-4 hover:underline transition-colors"
             >
-              <%= if @mode == :password do %>
-                Log in with an emailed link instead
-              <% else %>
-                Log in with a password instead
+              <%= cond do %>
+                <% @mode == :password -> %>
+                  Log in with an emailed link instead
+                <% @reset_intent -> %>
+                  Back to password login
+                <% true -> %>
+                  Log in with a password instead
               <% end %>
             </button>
 
@@ -128,14 +143,20 @@ defmodule AgoraWeb.UserLive.Login do
 
     {:ok,
      socket
-     |> assign(form: form, trigger_submit: false, mode: :password)
+     |> assign(form: form, trigger_submit: false, mode: :password, reset_intent: false)
      |> assign(:input_class, @input_class)}
   end
 
   @impl true
   def handle_event("toggle_mode", _params, socket) do
     {:noreply,
-     assign(socket, :mode, if(socket.assigns.mode == :password, do: :magic, else: :password))}
+     socket
+     |> assign(:mode, if(socket.assigns.mode == :password, do: :magic, else: :password))
+     |> assign(:reset_intent, false)}
+  end
+
+  def handle_event("forgot_password", _params, socket) do
+    {:noreply, assign(socket, mode: :magic, reset_intent: true)}
   end
 
   def handle_event("submit_password", _params, socket) do
@@ -146,7 +167,7 @@ defmodule AgoraWeb.UserLive.Login do
     if user = Accounts.get_user_by_email(email) do
       Accounts.deliver_login_instructions(
         user,
-        &url(~p"/users/log-in/#{&1}")
+        &magic_link_url(&1, socket.assigns.reset_intent)
       )
     end
 
@@ -157,6 +178,11 @@ defmodule AgoraWeb.UserLive.Login do
      socket
      |> put_flash(:info, info)
      |> push_navigate(to: ~p"/users/log-in")}
+  end
+
+  defp magic_link_url(token, reset_intent?) do
+    base = url(~p"/users/log-in/#{token}")
+    if reset_intent?, do: base <> "?" <> URI.encode_query(return_to: "/users/settings"), else: base
   end
 
   defp local_mail_adapter? do

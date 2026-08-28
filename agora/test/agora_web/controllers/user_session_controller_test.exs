@@ -119,6 +119,39 @@ defmodule AgoraWeb.UserSessionControllerTest do
       assert response =~ ~p"/users/log-out"
     end
 
+    test "redirects to settings with reset copy when return_to is settings (forgot password)", %{
+      conn: conn,
+      user: user
+    } do
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"token" => token, "return_to" => "/users/settings"}
+        })
+
+      assert get_session(conn, :user_token)
+      assert redirected_to(conn) == ~p"/users/settings"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) ==
+               "You're in — set a new password below."
+    end
+
+    test "ignores a return_to value that isn't allowlisted (no open redirect)", %{
+      conn: conn,
+      user: user
+    } do
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"token" => token, "return_to" => "https://evil.example.com"}
+        })
+
+      assert get_session(conn, :user_token)
+      assert redirected_to(conn) == ~p"/"
+    end
+
     test "redirects to login page when magic link is invalid", %{conn: conn} do
       conn =
         post(conn, ~p"/users/log-in", %{

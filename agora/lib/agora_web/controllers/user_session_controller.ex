@@ -4,6 +4,12 @@ defmodule AgoraWeb.UserSessionController do
   alias Agora.Accounts
   alias AgoraWeb.UserAuth
 
+  # magic link login requested from the "Forgot password?" link: send the user
+  # straight to Settings to set a new password instead of the default landing page.
+  def create(conn, %{"user" => %{"return_to" => "/users/settings"}} = params) do
+    create(conn, params, "You're in — set a new password below.")
+  end
+
   def create(conn, %{"_action" => "confirmed"} = params) do
     create(conn, params, "User confirmed successfully.")
   end
@@ -19,6 +25,7 @@ defmodule AgoraWeb.UserSessionController do
         UserAuth.disconnect_sessions(tokens_to_disconnect)
 
         conn
+        |> maybe_put_return_to(user_params["return_to"])
         |> put_flash(:info, info)
         |> UserAuth.log_in_user(user, user_params)
 
@@ -58,6 +65,16 @@ defmodule AgoraWeb.UserSessionController do
     |> put_session(:user_return_to, ~p"/users/settings")
     |> create(params, "Password updated successfully!")
   end
+
+  # Only ever trust an allowlisted internal path here — this value rides in an
+  # emailed link, so an unvalidated value would be an open-redirect vector.
+  @safe_return_to_paths ~w(/users/settings)
+
+  defp maybe_put_return_to(conn, return_to) when return_to in @safe_return_to_paths do
+    put_session(conn, :user_return_to, return_to)
+  end
+
+  defp maybe_put_return_to(conn, _return_to), do: conn
 
   def delete(conn, _params) do
     conn

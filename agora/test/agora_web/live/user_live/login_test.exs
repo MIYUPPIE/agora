@@ -3,6 +3,7 @@ defmodule AgoraWeb.UserLive.LoginTest do
 
   import Phoenix.LiveViewTest
   import Agora.AccountsFixtures
+  import Swoosh.TestAssertions
 
   describe "login page" do
     test "renders login page", %{conn: conn} do
@@ -75,6 +76,55 @@ defmodule AgoraWeb.UserLive.LoginTest do
       conn = follow_trigger_action(form, conn)
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
       assert redirected_to(conn) == ~p"/users/log-in"
+    end
+  end
+
+  describe "user login - forgot password" do
+    test "shows a forgot password link in password mode", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/log-in")
+
+      assert html =~ "Forgot password?"
+    end
+
+    test "clicking it switches to the magic-link form with reset copy", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
+
+      html = lv |> element("button", "Forgot password?") |> render_click()
+
+      assert html =~ "Email Me a Password Reset Link"
+      assert html =~ "set a new password from Settings"
+      assert html =~ "Back to password login"
+    end
+
+    test "toggling back to password login clears the reset copy", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
+
+      lv |> element("button", "Forgot password?") |> render_click()
+      html = lv |> element("button", "Back to password login") |> render_click()
+
+      refute html =~ "Email Me a Password Reset Link"
+      assert html =~ ~s(id="login_form_password")
+    end
+
+    test "emails a magic link that routes the user to Settings after log-in", %{conn: conn} do
+      user = user_fixture()
+      # drain the confirmation email that user_fixture/1 sends during setup
+      assert_email_sent()
+
+      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
+      lv |> element("button", "Forgot password?") |> render_click()
+
+      {:ok, _lv, html} =
+        form(lv, "#login_form_magic", user: %{email: user.email})
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert html =~ "If your email is in our system"
+
+      assert Agora.Repo.get_by!(Agora.Accounts.UserToken, user_id: user.id).context ==
+               "login"
+
+      assert_email_sent(fn email -> email.text_body =~ "return_to=%2Fusers%2Fsettings" end)
     end
   end
 
