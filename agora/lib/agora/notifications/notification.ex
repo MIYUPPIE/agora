@@ -10,7 +10,9 @@ defmodule Agora.Notifications.Notification do
     belongs_to :post, Agora.Posts.Post
     belongs_to :gathering, Agora.Gatherings.Gathering
 
-    field :type, Ecto.Enum, values: [:cling, :comment, :reaction, :gathering_live]
+    field :type, Ecto.Enum,
+      values: [:cling, :comment, :reaction, :gathering_live, :transcript_ready]
+
     field :reaction_kind, Ecto.Enum, values: [:heart, :torch]
     field :read_at, :utc_datetime
 

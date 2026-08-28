@@ -5,7 +5,7 @@ defmodule AgoraWeb.GatheringLive.ShowTest do
   import Agora.AccountsFixtures
   import Agora.MediaFixtures
 
-  alias Agora.{Gatherings, Media, Recordings}
+  alias Agora.{Gatherings, Media, Recordings, Transcripts}
 
   describe "rendering" do
     test "a live gathering shows the player and listener count", %{conn: conn} do
@@ -195,6 +195,145 @@ defmodule AgoraWeb.GatheringLive.ShowTest do
 
       lv |> form("form[phx-submit=send_chat]", %{"body" => "   "}) |> render_submit()
       refute has_element?(lv, "#chat-messages div")
+    end
+  end
+
+  describe "live captions" do
+    test "shows a placeholder when nothing has been transcribed yet", %{conn: conn} do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      {:ok, _lv, html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+
+      assert html =~ "Captions will appear here"
+    end
+
+    test "already-transcribed segments load on mount, oldest first", %{conn: conn} do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      Transcripts.append_live_segment!(gathering.id, %{
+        text: "First sentence.",
+        start_ms: 0,
+        end_ms: 900
+      })
+
+      Transcripts.append_live_segment!(gathering.id, %{
+        text: "Second sentence.",
+        start_ms: 900,
+        end_ms: 1800
+      })
+
+      {:ok, _lv, html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+
+      assert html =~ "First sentence."
+      assert html =~ "Second sentence."
+    end
+
+    test "a live segment broadcast while connected appears without a page reload", %{conn: conn} do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      {:ok, lv, html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+      refute html =~ "Welcome to the broadcast"
+
+      Transcripts.append_live_segment!(gathering.id, %{
+        text: "Welcome to the broadcast",
+        start_ms: 0,
+        end_ms: 1200
+      })
+
+      assert render(lv) =~ "Welcome to the broadcast"
+      # still just live captions, not a finalized transcript
+      refute render(lv) =~ "Final Transcript"
+    end
+
+    test "a caption from the broadcaster's Studio page reaches a listener's Show page", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, studio_lv, _html} =
+        live(log_in_user(conn, broadcaster), ~p"/gatherings/new")
+
+      studio_lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+      gathering = hd(Agora.Repo.all(Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+
+      {:ok, listener_lv, _html} =
+        live(log_in_user(build_conn(), listener), ~p"/gatherings/#{gathering.id}")
+
+      Transcripts.append_live_segment!(gathering.id, %{
+        text: "Can everyone hear me okay?",
+        start_ms: 0,
+        end_ms: 1500
+      })
+
+      assert render(listener_lv) =~ "Can everyone hear me okay?"
+      assert render(studio_lv) =~ "Can everyone hear me okay?"
+    end
+
+    test "once the archival pass finalizes the transcript, the badge and segments update live", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+
+      Transcripts.append_live_segment!(gathering.id, %{
+        text: "Provisional draft.",
+        start_ms: 0,
+        end_ms: 900
+      })
+
+      {:ok, lv, html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+      refute html =~ "Final Transcript"
+
+      Transcripts.replace_final!(gathering.id, [
+        %{text: "Polished final sentence.", start_ms: 0, end_ms: 900}
+      ])
+
+      html = render(lv)
+      assert html =~ "Final Transcript"
+      assert html =~ "Polished final sentence."
+      refute html =~ "Provisional draft."
+    end
+
+    test "the download link points at the transcript.srt endpoint for this gathering", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      listener = user_fixture()
+
+      {:ok, gathering} =
+        Gatherings.create_gathering(broadcaster.id, %{"title" => "Sunday service"})
+
+      :ok = Gatherings.mark_live!(gathering.id)
+      Transcripts.append_live_segment!(gathering.id, %{text: "Hi", start_ms: 0, end_ms: 400})
+
+      {:ok, _lv, html} = live(log_in_user(conn, listener), ~p"/gatherings/#{gathering.id}")
+
+      assert html =~ ~p"/gatherings/#{gathering.id}/transcript.srt"
     end
   end
 end

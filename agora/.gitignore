@@ -37,6 +37,11 @@ agora-*.tar
 # Local disk root for live Gathering segments/recordings (dev only).
 /priv/media_root_dev/
 
+# whisper.cpp binaries + ggml model weights for live transcription — built
+# by scripts/setup_whisper.sh, never committed (compiled artifacts and
+# model weights, see the top of that script).
+/priv/whisper/
+
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
 /assets/node_modules/

@@ -117,6 +117,7 @@ defmodule Agora.MixProject do
         "phx.digest"
       ],
       "test.js": ["cmd node --test assets/js/**/*.test.mjs"],
+      "test.whisper": ["ecto.create --quiet", "ecto.migrate --quiet", "test --include whisper"],
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --unused",

@@ -1146,4 +1146,83 @@ defmodule AgoraWeb.AgoraComponents do
     </div>
     """
   end
+
+  @doc """
+  Live captions / transcript — shared by `AgoraWeb.GatheringLive.Show`
+  (listener view) and `AgoraWeb.GatheringLive.New` (broadcaster's Studio,
+  which additionally gets `show_toggle` to turn captioning on/off via
+  `Agora.Media.Transcription.set_enabled/2`). `segments` is expected
+  newest-first (same convention as `chat_panel`'s `messages` — see that
+  doc — and for the same reason: `flex-col-reverse` below auto-anchors
+  scroll to the newest caption with no JS).
+
+  Once `Agora.Workers.ArchiveGathering` replaces the provisional live
+  captions with an accurate final pass (see
+  `Agora.Transcripts.replace_final!/2`), `finalized` flips this panel's
+  badge and enables the transcript download link — before that, a
+  Gathering that's still live has no complete transcript to download
+  yet, only whatever captions have streamed in so far.
+  """
+  attr :segments, :list, required: true
+  attr :gathering_id, :string, required: true
+  attr :finalized, :boolean, default: false
+  attr :show_toggle, :boolean, default: false
+  attr :enabled, :boolean, default: true
+
+  def transcript_panel(assigns) do
+    ~H"""
+    <div class="rounded-2xl bg-base-200/60 border border-base-content/[0.06] p-5 space-y-3">
+      <div class="flex items-center justify-between text-xs font-bold text-base-content/80 pb-1">
+        <span class="flex items-center gap-1.5">
+          <.icon name="hero-document-text" class="size-4 text-primary" /> Captions
+        </span>
+        <div class="flex items-center gap-2">
+          <span
+            :if={@finalized}
+            class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20"
+          >
+            Final Transcript
+          </span>
+          <span :if={!@finalized and @segments != []} class="text-[10px] text-base-content/40">
+            Live &amp; provisional
+          </span>
+          <label :if={@show_toggle} class="inline-flex items-center gap-1.5 cursor-pointer">
+            <span class="text-[10px] text-base-content/50">Live captions</span>
+            <input
+              type="checkbox"
+              checked={@enabled}
+              phx-click="toggle_captions"
+              class="toggle toggle-primary toggle-xs"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div
+        id="transcript-segments"
+        class="h-40 overflow-y-auto rounded-xl well p-3.5 space-y-2 border border-base-content/[0.04] flex flex-col-reverse custom-scrollbar"
+      >
+        <div
+          :for={segment <- @segments}
+          class="text-xs leading-relaxed bg-base-content/[0.02] p-2 rounded-lg border border-base-content/[0.03]"
+        >
+          <span class="font-mono text-base-content/30 mr-1.5">{format_duration(segment.start_ms)}</span>
+          <span class="text-base-content/90">{segment.text}</span>
+        </div>
+        <p :if={@segments == []} class="text-xs text-base-content/40 text-center py-6">
+          Captions will appear here once someone starts talking.
+        </p>
+      </div>
+
+      <.link
+        :if={@segments != []}
+        href={~p"/gatherings/#{@gathering_id}/transcript.srt"}
+        class="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline"
+      >
+        <.icon name="hero-arrow-down-tray" class="size-3.5" />
+        Download {if @finalized, do: "transcript", else: "captions so far"} (.srt)
+      </.link>
+    </div>
+    """
+  end
 end

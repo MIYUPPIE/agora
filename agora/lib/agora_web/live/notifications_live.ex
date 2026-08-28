@@ -106,15 +106,22 @@ defmodule AgoraWeb.NotificationsLive do
   defp notification_target(%{type: :gathering_live, gathering_id: gathering_id}),
     do: ~p"/gatherings/#{gathering_id}"
 
+  defp notification_target(%{type: :transcript_ready, gathering_id: gathering_id}),
+    do: ~p"/gatherings/#{gathering_id}"
+
   defp notification_icon(%{type: :cling}), do: "hero-user-plus"
   defp notification_icon(%{type: :comment}), do: "hero-chat-bubble-left"
   defp notification_icon(%{type: :reaction, reaction_kind: :torch}), do: "hero-fire"
   defp notification_icon(%{type: :reaction}), do: "hero-heart"
   defp notification_icon(%{type: :gathering_live}), do: "hero-signal"
+  defp notification_icon(%{type: :transcript_ready}), do: "hero-document-text"
 
   defp notification_message(%{type: :cling}), do: "started clinging to you"
   defp notification_message(%{type: :comment}), do: "commented on your post"
   defp notification_message(%{type: :reaction, reaction_kind: :torch}), do: "torched your post"
   defp notification_message(%{type: :reaction}), do: "hearted your post"
   defp notification_message(%{type: :gathering_live}), do: "is live now"
+
+  defp notification_message(%{type: :transcript_ready}),
+    do: "Your Gathering's transcript is ready"
 end

@@ -92,6 +92,23 @@ config :agora, :media_root, Path.expand("../priv/media_root_dev", __DIR__)
 # key trips `mix release`'s compile_env-vs-runtime validation at boot.
 config :agora, :media_static_root, Path.expand("../priv/media_root_dev", __DIR__)
 
+# Live transcription (Agora.Media.Audio.WhisperServer + the archival pass
+# in Agora.Workers.ArchiveGathering) — points at the binaries/models
+# `scripts/setup_whisper.sh` builds into priv/whisper/, gitignored since
+# they're compiled artifacts + model weights, not source. Entirely
+# optional: if these paths don't exist, WhisperServer logs once and stays
+# inert rather than crashing the app (same resilience call as the client
+# audio pipeline in browser_broadcast.js — no captions beats no broadcast).
+whisper_dir = Path.expand("../priv/whisper", __DIR__)
+
+config :agora,
+  whisper_cli: Path.join([whisper_dir, "bin", "whisper-cli"]),
+  whisper_server_bin: Path.join([whisper_dir, "bin", "whisper-server"]),
+  whisper_live_model: Path.join([whisper_dir, "models", "ggml-base.en.bin"]),
+  whisper_final_model: Path.join([whisper_dir, "models", "ggml-small.en.bin"]),
+  whisper_server_port: 8090,
+  start_whisper_server: true
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

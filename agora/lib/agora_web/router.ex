@@ -21,6 +21,7 @@ defmodule AgoraWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/gatherings/:id/transcript.srt", TranscriptController, :srt
   end
 
   # Other scopes may use custom stacks.

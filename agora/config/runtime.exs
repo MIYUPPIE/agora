@@ -167,4 +167,18 @@ if config_env() == :prod do
   config :agora, :media_root, System.get_env("MEDIA_ROOT", "/app/media_root")
 
   config :agora, :rtmp_port, String.to_integer(System.get_env("RTMP_PORT", "1935"))
+
+  # Live transcription — see scripts/setup_whisper.sh and the moduledoc on
+  # Agora.Media.Audio.WhisperServer. Unset WHISPER_* env vars leave
+  # transcription silently disabled rather than failing boot (same
+  # deliberate-opt-in-dependency stance as libfdk-aac in FFmpegPort).
+  config :agora,
+    whisper_cli: System.get_env("WHISPER_CLI_PATH", "/app/whisper/bin/whisper-cli"),
+    whisper_server_bin: System.get_env("WHISPER_SERVER_PATH", "/app/whisper/bin/whisper-server"),
+    whisper_live_model:
+      System.get_env("WHISPER_LIVE_MODEL_PATH", "/app/whisper/models/ggml-base.en.bin"),
+    whisper_final_model:
+      System.get_env("WHISPER_FINAL_MODEL_PATH", "/app/whisper/models/ggml-small.en.bin"),
+    whisper_server_port: String.to_integer(System.get_env("WHISPER_SERVER_PORT", "8090")),
+    start_whisper_server: System.get_env("TRANSCRIPTION_ENABLED", "true") in ~w(true 1)
 end

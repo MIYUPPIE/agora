@@ -12,11 +12,12 @@ defmodule AgoraWeb.GatheringLive.Show do
 
   use AgoraWeb, :live_view
 
-  alias Agora.{Gatherings, Media, Profiles, Recordings}
+  alias Agora.{Gatherings, Media, Profiles, Recordings, Transcripts}
   alias AgoraWeb.Presence
 
   @segment_duration_s 4
   @max_chat_messages 50
+  @max_transcript_segments 100
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -28,6 +29,7 @@ defmodule AgoraWeb.GatheringLive.Show do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Agora.PubSub, topic)
       Phoenix.PubSub.subscribe(Agora.PubSub, "#{topic}:segments")
+      Phoenix.PubSub.subscribe(Agora.PubSub, "#{topic}:transcript")
 
       if user do
         Phoenix.PubSub.subscribe(Agora.PubSub, "user:#{user.id}:recordings")
@@ -54,7 +56,8 @@ defmodule AgoraWeb.GatheringLive.Show do
      |> assign(:download_url, nil)
      |> assign(:chat_messages, [])
      |> assign(:chat_draft, "")
-     |> assign(:manifest_url, Gatherings.manifest_url(gathering))}
+     |> assign(:manifest_url, Gatherings.manifest_url(gathering))
+     |> assign_transcript(gathering.id)}
   end
 
   # ── Events ────────────────────────────────────────────────────────────
@@ -130,6 +133,17 @@ defmodule AgoraWeb.GatheringLive.Show do
     {:noreply, assign(socket, :chat_messages, messages)}
   end
 
+  def handle_info({:transcript_segment, segment}, socket) do
+    segments =
+      [segment | socket.assigns.transcript_segments] |> Enum.take(@max_transcript_segments)
+
+    {:noreply, assign(socket, :transcript_segments, segments)}
+  end
+
+  def handle_info({:transcript_finalized, _id}, socket) do
+    {:noreply, assign_transcript(socket, socket.assigns.gathering.id)}
+  end
+
   def handle_info({:recording_ready, _id, url}, socket) do
     {:noreply,
      socket
@@ -160,6 +174,22 @@ defmodule AgoraWeb.GatheringLive.Show do
 
   defp recording_elapsed_s(%{start_seq: start_seq}, head_sequence) do
     max(head_sequence - start_seq, 0) * @segment_duration_s
+  end
+
+  # Loads whichever transcript currently exists for a Gathering (final if
+  # Agora.Workers.ArchiveGathering already ran, live captions otherwise —
+  # see Agora.Transcripts.list_for_gathering/2), reversed to newest-first
+  # to match the `flex-col-reverse` convention chat_panel/transcript_panel
+  # both rely on for auto-anchored scrolling.
+  defp assign_transcript(socket, gathering_id) do
+    segments = Transcripts.list_for_gathering(gathering_id)
+
+    socket
+    |> assign(
+      :transcript_segments,
+      segments |> Enum.take(-@max_transcript_segments) |> Enum.reverse()
+    )
+    |> assign(:transcript_finalized, Transcripts.finalized?(gathering_id))
   end
 
   # ── Render ────────────────────────────────────────────────────────────
@@ -286,6 +316,12 @@ defmodule AgoraWeb.GatheringLive.Show do
             </a>
           <% end %>
         </div>
+
+        <.transcript_panel
+          segments={@transcript_segments}
+          gathering_id={@gathering.id}
+          finalized={@transcript_finalized}
+        />
 
         <.chat_panel messages={@chat_messages} draft={@chat_draft} />
       </div>

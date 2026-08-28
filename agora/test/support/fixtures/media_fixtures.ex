@@ -34,4 +34,34 @@ defmodule Agora.MediaFixtures do
       Media.insert_segment!(%{gathering_id: gathering_id, sequence: seq, filename: filename})
     end)
   end
+
+  @doc """
+  Synthesizes real, whisper-transcribable speech via ffmpeg's built-in
+  `flite` TTS source filter (confirmed hands-on: `libflite` is already
+  compiled into this host's ffmpeg, and a real whisper.cpp model
+  transcribes its output correctly) — raw s16le stereo PCM at the
+  Gathering pipeline's native 48kHz, ready to feed straight into
+  `Agora.Media.Audio.UtteranceBuffer`/`Transcriber` or wrap with
+  `Agora.Media.Audio.Wav.encode/3`. Deterministic and dependency-free
+  (no committed audio fixture, no network) — the whole point of using
+  it instead of a vendored sample file.
+  """
+  def synth_speech_pcm!(text, opts \\ []) do
+    sample_rate = Keyword.get(opts, :sample_rate, 48_000)
+    channels = Keyword.get(opts, :channels, 2)
+    voice = Keyword.get(opts, :voice, "slt")
+
+    {pcm, 0} =
+      System.cmd(
+        "ffmpeg",
+        ~w(-hide_banner -loglevel error -f lavfi -i) ++
+          ["flite=text='#{escape(text)}':voice=#{voice}"] ++
+          ~w(-f s16le -ar #{sample_rate} -ac #{channels} pipe:1),
+        []
+      )
+
+    pcm
+  end
+
+  defp escape(text), do: String.replace(text, "'", "")
 end

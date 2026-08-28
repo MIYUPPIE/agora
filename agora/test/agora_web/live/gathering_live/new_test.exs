@@ -267,6 +267,182 @@ defmodule AgoraWeb.GatheringLive.NewTest do
     end
   end
 
+  describe "live captions on the broadcaster's Studio page" do
+    test "renders once a Gathering exists, captions on by default", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert html =~ "Captions will appear here"
+      assert html =~ "Live captions"
+      assert has_element?(lv, "input[phx-click='toggle_captions'][checked]")
+    end
+
+    test "toggling captions off pushes {:set_transcription_enabled, false} to the live pipeline",
+         %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      {:ok, _pid} = FakePipeline.start_link(gathering_id: gathering.id, test_pid: self())
+
+      html = render_click(lv, "toggle_captions")
+
+      assert_receive {:got_call, {:set_transcription_enabled, false}}
+      refute has_element?(lv, "input[phx-click='toggle_captions'][checked]")
+      assert html =~ "Live captions"
+
+      render_click(lv, "toggle_captions")
+      assert_receive {:got_call, {:set_transcription_enabled, true}}
+    end
+
+    test "a live segment appears without a page reload", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      Agora.Transcripts.append_live_segment!(gathering.id, %{
+        text: "Testing, testing, one two three.",
+        start_ms: 0,
+        end_ms: 1000
+      })
+
+      assert render(lv) =~ "Testing, testing, one two three."
+    end
+  end
+
+  describe "the OBS ingest URL's copy control" do
+    test "renders the copy hook wired to the exact ingest URL text", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(log_in_user(conn, user), ~p"/gatherings/new")
+
+      html = lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      assert html =~ ~s(id="ingest-url-copy")
+      assert html =~ ~s(phx-hook="CopyToClipboard")
+      assert html =~ ~s(data-role="ingest-url")
+      assert html =~ Gatherings.ingest_url(gathering)
+    end
+  end
+
+  describe "resuming an existing Studio session" do
+    test "reopening the page (no id in the URL) drops the broadcaster back into their existing Gathering, not a blank form",
+         %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, lv, _html} = live(conn, ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      assert [gathering] = Agora.Repo.all(Agora.Gatherings.Gathering)
+
+      {:ok, _resumed_lv, html} = live(build_conn() |> log_in_user(user), ~p"/gatherings/new")
+
+      assert html =~ Gatherings.ingest_url(gathering)
+      assert html =~ "Waiting for your broadcast to start"
+      refute html =~ "Initialize Gathering Studio"
+
+      # Still exactly one Gathering — resuming must never mint a second
+      # stream key alongside the one already handed to an encoder.
+      assert Agora.Repo.aggregate(Agora.Gatherings.Gathering, :count) == 1
+    end
+
+    test "a resumed session reflects that the Gathering is already live", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, lv, _html} = live(conn, ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+
+      {:ok, _lv, html} = live(build_conn() |> log_in_user(user), ~p"/gatherings/new")
+
+      assert html =~ "You&#39;re live"
+      refute html =~ "Waiting for your broadcast to start"
+    end
+
+    test "a resumed session still carries the transcript already gathered so far", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, lv, _html} = live(conn, ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      Agora.Transcripts.append_live_segment!(gathering.id, %{
+        text: "Welcome everyone to the gathering",
+        start_ms: 0,
+        end_ms: 2000
+      })
+
+      {:ok, _lv, html} = live(build_conn() |> log_in_user(user), ~p"/gatherings/new")
+
+      assert html =~ "Welcome everyone to the gathering"
+    end
+
+    test "a resumed session's browser-broadcast token still authorizes that Gathering", %{
+      conn: conn
+    } do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, lv, _html} = live(conn, ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      {:ok, _lv, html} = live(build_conn() |> log_in_user(user), ~p"/gatherings/new")
+      [_, token] = Regex.run(~r/data-token="([^"]+)"/, html)
+
+      assert {:ok, socket} = Phoenix.ChannelTest.connect(UserSocket, %{"token" => token})
+
+      assert {:ok, _reply, _socket} =
+               subscribe_and_join(socket, BroadcastChannel, "broadcast:#{gathering.id}", %{})
+    end
+
+    test "once the Gathering has ended, reopening the page shows a fresh blank form again", %{
+      conn: conn
+    } do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, lv, _html} = live(conn, ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+      Gatherings.mark_live!(gathering.id)
+      Gatherings.mark_ended!(gathering.id)
+
+      {:ok, _lv, html} = live(build_conn() |> log_in_user(user), ~p"/gatherings/new")
+
+      assert html =~ "Initialize Gathering Studio"
+      refute html =~ Gatherings.ingest_url(gathering)
+    end
+
+    test "a different user reopening the page never resumes someone else's Gathering", %{
+      conn: conn
+    } do
+      broadcaster = user_fixture()
+      other_user = user_fixture()
+
+      {:ok, lv, _html} = live(log_in_user(conn, broadcaster), ~p"/gatherings/new")
+      lv |> form("form", gathering: %{title: "Sunday service"}) |> render_submit()
+      gathering = hd(Agora.Repo.all(Agora.Gatherings.Gathering))
+
+      {:ok, _lv, html} = live(build_conn() |> log_in_user(other_user), ~p"/gatherings/new")
+
+      assert html =~ "Initialize Gathering Studio"
+      refute html =~ Gatherings.ingest_url(gathering)
+    end
+  end
+
   defp extract_stream_key(html) do
     [_, key] = Regex.run(~r{rtmp://[^/]+/live/([^\s<]+)}, html)
     key

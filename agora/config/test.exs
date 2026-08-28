@@ -50,6 +50,24 @@ config :agora, :browser_broadcast_ffmpeg_args, fn _rtmp_url -> [] end
 config :agora, :start_rtmp_server, false
 config :agora, Oban, testing: :manual
 
+# No supervised whisper-server child in the fast test suite (mirrors
+# :start_rtmp_server above) — Agora.Media.Audio.WhisperServerTest and the
+# real-model round-trip tests each start/stop their own instance on a
+# throwaway port instead, so they don't race a shared one across the
+# suite. Still points at the real dev binaries/models (built by
+# scripts/setup_whisper.sh) so those tests can run for real rather than
+# against a stub; they skip themselves at runtime if that setup script
+# hasn't been run on this machine.
+config :agora, :start_whisper_server, false
+whisper_dir_test = Path.expand("../priv/whisper", __DIR__)
+
+config :agora,
+  whisper_cli: Path.join([whisper_dir_test, "bin", "whisper-cli"]),
+  whisper_server_bin: Path.join([whisper_dir_test, "bin", "whisper-server"]),
+  whisper_live_model: Path.join([whisper_dir_test, "models", "ggml-base.en.bin"]),
+  whisper_final_model: Path.join([whisper_dir_test, "models", "ggml-small.en.bin"]),
+  whisper_server_port: 8091
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

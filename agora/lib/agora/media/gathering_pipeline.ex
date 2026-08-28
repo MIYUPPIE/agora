@@ -7,16 +7,20 @@ defmodule Agora.Media.GatheringPipeline do
          -> HLS packager -> Agora.Media.SegmentStorage (disk + DB + PubSub)
 
   The decode/effects/encode detour is `Agora.Media.Audio.AACDecoder` ->
-  `Agora.Media.Audio.EffectsFilter` -> `Agora.Media.Audio.AACEncoder` —
-  gain, noise gate, EQ, compressor, reverb, and limiter, applied live and
-  controllable in real time via `handle_call/3` below, from
-  `Agora.Media.AudioEffects`. It runs for every broadcaster regardless of
-  how they connect (OBS/RTMP directly, or the browser-mic bridge via
+  `Agora.Media.Audio.EffectsFilter` -> `Agora.Media.Audio.Transcriber` ->
+  `Agora.Media.Audio.AACEncoder` — gain, noise gate, EQ, compressor,
+  reverb, and limiter, applied live and controllable in real time via
+  `handle_call/3` below, from `Agora.Media.AudioEffects`, followed by
+  live captioning (also live-toggled via `handle_call/3`, from
+  `Agora.Media.Transcription`) that taps the same cleaned-up PCM without
+  altering it. It runs for every broadcaster regardless of how they
+  connect (OBS/RTMP directly, or the browser-mic bridge via
   `Agora.Media.BrowserBroadcastBridge`, which itself just loops back into
   this same RTMP ingest) — see `Agora.Media.Audio.EffectsChain`'s
-  moduledoc for the DSP chain itself, and `Agora.Media.Audio.FFmpegPort`
-  for why AAC<->PCM conversion goes through ffmpeg rather than a native
-  Membrane codec plugin.
+  moduledoc for the DSP chain itself, `Agora.Media.Audio.Transcriber`'s
+  moduledoc for why captioning sits where it does, and
+  `Agora.Media.Audio.FFmpegPort` for why AAC<->PCM conversion goes
+  through ffmpeg rather than a native Membrane codec plugin.
 
   Design decisions:
 
@@ -36,7 +40,7 @@ defmodule Agora.Media.GatheringPipeline do
 
   use Membrane.Pipeline
 
-  alias Agora.Media.Audio.{AACDecoder, AACEncoder, EffectsFilter}
+  alias Agora.Media.Audio.{AACDecoder, AACEncoder, EffectsFilter, Transcriber}
   alias Agora.Media.AudioEffects
   alias Membrane.HTTPAdaptiveStream.SinkBin
   alias Membrane.Time
@@ -99,6 +103,7 @@ defmodule Agora.Media.GatheringPipeline do
       |> child(:aac_parser_in, %Membrane.AAC.Parser{out_encapsulation: :ADTS})
       |> child(:aac_decoder, AACDecoder)
       |> child(:effects, %EffectsFilter{initial_params: initial_effect_params})
+      |> child(:transcriber, %Transcriber{gathering_id: gathering_id})
       |> child(:aac_encoder, AACEncoder)
       |> child(:aac_parser_out, %Membrane.AAC.Parser{
         out_encapsulation: :none,
@@ -137,6 +142,12 @@ defmodule Agora.Media.GatheringPipeline do
   @impl true
   def handle_call({:update_effect_params, changes}, _ctx, state) do
     {[notify_child: {:effects, {:update_params, changes}}, reply: :ok], state}
+  end
+
+  # Live captions on/off — see Agora.Media.Transcription.set_enabled/2.
+  @impl true
+  def handle_call({:set_transcription_enabled, enabled?}, _ctx, state) do
+    {[notify_child: {:transcriber, {:set_enabled, enabled?}}, reply: :ok], state}
   end
 
   # Broadcaster disconnected / ended the Gathering.

@@ -7,6 +7,15 @@ defmodule Agora.Application do
 
   @impl true
   def start(_type, _args) do
+    if Application.get_env(:agora, :dev_routes) do
+      # The LAN dev setup intentionally runs plain HTTP on :4000 alongside
+      # HTTPS on :4001 (see config/dev.exs). A phone's HTTPS-first connection
+      # heuristic routinely probes :4000 before falling back, which Bandit
+      # logs as "Connection that looks like TLS received on a clear channel"
+      # — non-actionable noise, so drop it below :error.
+      Logger.put_module_level(Bandit.InitialHandler, :error)
+    end
+
     if media_root = Application.get_env(:agora, :media_root) do
       File.mkdir_p!(media_root)
     end
@@ -20,9 +29,15 @@ defmodule Agora.Application do
         AgoraWeb.Presence,
         {Oban, Application.fetch_env!(:agora, Oban)},
         Agora.Media.GatheringRegistry,
-        Agora.Media.GatheringSupervisor
+        Agora.Media.GatheringSupervisor,
+        # Runs the Task.Supervisor.start_child call in
+        # Agora.Media.Audio.Transcriber — off the Membrane pipeline
+        # process, so a slow/failed whisper-server request never stalls
+        # live audio.
+        {Task.Supervisor, name: Agora.TaskSupervisor}
       ] ++
         rtmp_server_child() ++
+        whisper_server_child() ++
         [
           # Start to serve requests, typically the last entry
           AgoraWeb.Endpoint
@@ -43,6 +58,20 @@ defmodule Agora.Application do
          port: Application.get_env(:agora, :rtmp_port, 1935),
          handle_new_client: &Agora.Media.RTMPEndpoint.handle_new_client/3}
       ]
+    else
+      []
+    end
+  end
+
+  # Tests start/stop their own throwaway whisper-server instances instead
+  # (see config/test.exs) so they don't race a shared one across the
+  # suite, and so a machine without scripts/setup_whisper.sh having been
+  # run yet doesn't fail to boot the app at all — see
+  # Agora.Media.Audio.WhisperServer's moduledoc for the full
+  # self-disabling story.
+  defp whisper_server_child do
+    if Application.get_env(:agora, :start_whisper_server, true) do
+      [Agora.Media.Audio.WhisperServer]
     else
       []
     end

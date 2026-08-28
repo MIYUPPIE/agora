@@ -14,30 +14,80 @@ defmodule AgoraWeb.GatheringLive.New do
   broadcast go live and die in the same second every time. Instead this
   page just flips a banner in place; viewing as a listener is an
   explicit, new-tab link so the broadcasting tab is never disturbed.
+
+  It's also resumable: `mount/3` always checks
+  `Gatherings.get_active_for_user/1` first and, if the broadcaster
+  already has a `:scheduled` or `:live` Gathering, drops them straight
+  back into that Studio session instead of a blank "create" form. OBS's
+  RTMP connection lives entirely server-side and doesn't care whether
+  this LiveView is even connected — without this, refreshing the tab
+  (or losing it — a crash, an accidental close) after pointing OBS at
+  the ingest URL would silently keep broadcasting while the broadcaster
+  lost every control over it, and submitting the create form again
+  would mint a second, unrelated Gathering with its own stream key
+  rather than getting back to the first.
   """
 
   use AgoraWeb, :live_view
 
-  alias Agora.{Gatherings, Profiles}
-  alias Agora.Media.AudioEffects
+  alias Agora.{Gatherings, Profiles, Transcripts}
+  alias Agora.Media.{AudioEffects, Transcription}
   alias AgoraWeb.BroadcastChannel
 
   @max_chat_messages 50
+  @max_transcript_segments 100
 
   @impl true
   def mount(_params, _session, socket) do
-    broadcaster_profile = Profiles.get_or_create!(socket.assigns.current_scope.user)
+    user = socket.assigns.current_scope.user
+    broadcaster_profile = Profiles.get_or_create!(user)
+    socket = assign(socket, broadcaster_profile: broadcaster_profile)
 
-    {:ok,
-     assign(socket,
-       gathering: nil,
-       broadcast_token: nil,
-       live?: false,
-       effect_params: nil,
-       broadcaster_profile: broadcaster_profile,
-       chat_messages: [],
-       chat_draft: ""
-     )}
+    # Resume straight into an existing scheduled/live Gathering rather than
+    # showing a blank "create" form — see get_active_for_user/1's moduledoc.
+    # This makes a page refresh (or reopening the tab) safe at any point
+    # during a broadcast, OBS included, since OBS's connection to the RTMP
+    # ingest is entirely independent of this LiveView process.
+    case Gatherings.get_active_for_user(user.id) do
+      nil ->
+        {:ok,
+         assign(socket,
+           gathering: nil,
+           broadcast_token: nil,
+           live?: false,
+           effect_params: nil,
+           chat_messages: [],
+           chat_draft: "",
+           transcript_segments: [],
+           transcript_finalized: false,
+           transcription_enabled: true
+         )}
+
+      gathering ->
+        {:ok, resume(socket, gathering, user)}
+    end
+  end
+
+  defp resume(socket, gathering, user) do
+    Phoenix.PubSub.subscribe(Agora.PubSub, "gathering:#{gathering.id}")
+    Phoenix.PubSub.subscribe(Agora.PubSub, "gathering:#{gathering.id}:transcript")
+
+    transcript_segments =
+      Transcripts.list_for_gathering(gathering.id)
+      |> Enum.take(-@max_transcript_segments)
+      |> Enum.reverse()
+
+    assign(socket,
+      gathering: gathering,
+      broadcast_token: BroadcastChannel.broadcast_token(gathering, user),
+      live?: gathering.status == :live,
+      effect_params: AudioEffects.get_params(user.id),
+      chat_messages: [],
+      chat_draft: "",
+      transcript_segments: transcript_segments,
+      transcript_finalized: Transcripts.finalized?(gathering.id),
+      transcription_enabled: true
+    )
   end
 
   @impl true
@@ -47,6 +97,7 @@ defmodule AgoraWeb.GatheringLive.New do
     case Gatherings.create_gathering(user.id, %{"title" => title}) do
       {:ok, gathering} ->
         Phoenix.PubSub.subscribe(Agora.PubSub, "gathering:#{gathering.id}")
+        Phoenix.PubSub.subscribe(Agora.PubSub, "gathering:#{gathering.id}:transcript")
 
         {:noreply,
          socket
@@ -85,10 +136,36 @@ defmodule AgoraWeb.GatheringLive.New do
     {:noreply, assign(socket, :chat_draft, "")}
   end
 
+  def handle_event("toggle_captions", _params, socket) do
+    enabled? = !socket.assigns.transcription_enabled
+    Transcription.set_enabled(socket.assigns.gathering.id, enabled?)
+    {:noreply, assign(socket, :transcription_enabled, enabled?)}
+  end
+
   @impl true
   def handle_info({:chat_message, message}, socket) do
     messages = [message | socket.assigns.chat_messages] |> Enum.take(@max_chat_messages)
     {:noreply, assign(socket, :chat_messages, messages)}
+  end
+
+  def handle_info({:transcript_segment, segment}, socket) do
+    segments =
+      [segment | socket.assigns.transcript_segments] |> Enum.take(@max_transcript_segments)
+
+    {:noreply, assign(socket, :transcript_segments, segments)}
+  end
+
+  def handle_info({:transcript_finalized, _id}, socket) do
+    gathering_id = socket.assigns.gathering.id
+    segments = Transcripts.list_for_gathering(gathering_id)
+
+    {:noreply,
+     socket
+     |> assign(
+       :transcript_segments,
+       segments |> Enum.take(-@max_transcript_segments) |> Enum.reverse()
+     )
+     |> assign(:transcript_finalized, true)}
   end
 
   def handle_info({:gathering_live, id}, socket) do
@@ -234,10 +311,31 @@ defmodule AgoraWeb.GatheringLive.New do
               <p class="text-xs text-base-content/60">
                 Point your streaming encoder (OBS, Audio Hijack, or hardware mixer) to this RTMP Ingest URL:
               </p>
-              <div class="relative group">
-                <code class="block well p-3.5 rounded-xl text-xs font-mono break-all text-primary border border-primary/20">
+              <div
+                id="ingest-url-copy"
+                phx-hook="CopyToClipboard"
+                phx-update="ignore"
+                class="relative group cursor-pointer"
+                title="Copy ingest URL"
+              >
+                <code
+                  data-role="ingest-url"
+                  class="block well p-3.5 pr-11 rounded-xl text-xs font-mono break-all text-primary border border-primary/20"
+                >
                   {Gatherings.ingest_url(@gathering)}
                 </code>
+                <span
+                  data-role="idle"
+                  class="absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-base-content/[0.06] text-base-content/50 group-hover:text-primary group-hover:bg-primary/10 transition-colors"
+                >
+                  <.icon name="hero-clipboard-document" class="size-4" />
+                </span>
+                <span
+                  data-role="copied"
+                  class="hidden absolute top-2.5 right-2.5 flex items-center justify-center size-7 rounded-lg bg-emerald-400/10 text-emerald-400"
+                >
+                  <.icon name="hero-check" class="size-4" />
+                </span>
               </div>
               <div class="p-3 rounded-xl bg-base-content/[0.03] border border-base-content/[0.04] space-y-1">
                 <p class="text-[11px] font-bold text-base-content">Recommended Audio Bitrate:</p>
@@ -276,6 +374,14 @@ defmodule AgoraWeb.GatheringLive.New do
               <.icon name="hero-arrow-top-right-on-square" class="size-4" /> View as a listener
             </a>
           </div>
+
+          <.transcript_panel
+            segments={@transcript_segments}
+            gathering_id={@gathering.id}
+            finalized={@transcript_finalized}
+            show_toggle={true}
+            enabled={@transcription_enabled}
+          />
 
           <.chat_panel messages={@chat_messages} draft={@chat_draft} />
         </div>
